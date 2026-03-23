@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,6 +19,11 @@ import AddPropertyContact from "./pages/AddPropertyContact.tsx";
 
 const queryClient = new QueryClient();
 
+const SuperAdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const user = (() => { try { return JSON.parse(localStorage.getItem("adminUser") ?? "{}"); } catch { return {}; } })();
+  return user?.role === "super_admin" ? <>{children}</> : <Navigate to="/admin" replace />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -37,7 +42,7 @@ const App = () => (
           <Route path="/admin/properties" element={<AdminProperties />} />
           <Route path="/admin/add-property" element={<AddProperty />} />
           <Route path="/admin/edit-property/:id" element={<EditProperty />} />
-          <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/users" element={<SuperAdminRoute><AdminUsers /></SuperAdminRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

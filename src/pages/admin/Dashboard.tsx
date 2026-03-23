@@ -17,11 +17,16 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
+  const currentUser = (() => {
+    try { return JSON.parse(localStorage.getItem("adminUser") ?? "{}"); } catch { return {}; }
+  })();
+  const isSuperAdmin = currentUser?.role === "super_admin";
+
   const navItems = [
     { label: "الرئيسية", href: "/admin", icon: Home },
     { label: "إدارة العقارات", href: "/admin/properties", icon: List },
     { label: "إضافة عقار جديد", href: "/admin/add-property", icon: Plus },
-    { label: "إدارة المستخدمين", href: "/admin/users", icon: Users },
+    ...(isSuperAdmin ? [{ label: "إدارة المستخدمين", href: "/admin/users", icon: Users }] : []),
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -103,6 +108,12 @@ const Dashboard = () => {
   const featured = useAppSelector(selectFeaturedProperties);
   const allProperties = useAppSelector(selectAllProperties);
   const { data: allUsers = [] } = useGetUsersQuery();
+
+  const currentUser = (() => {
+    try { return JSON.parse(localStorage.getItem("adminUser") ?? "{}"); } catch { return {}; }
+  })();
+  const isSuperAdmin = currentUser?.role === "super_admin";
+
   const userStats = {
     total: allUsers.length,
     active: allUsers.filter((u) => u.active).length,
@@ -116,14 +127,16 @@ const Dashboard = () => {
     { label: "عقارات نشطة", value: propStats.active, icon: Eye, color: "text-green-600", bg: "bg-green-50" },
     { label: "عقارات مخفية", value: propStats.inactive, icon: EyeOff, color: "text-orange-500", bg: "bg-orange-50" },
     { label: "عقارات مميزة", value: featured.length, icon: Star, color: "text-yellow-500", bg: "bg-yellow-50" },
-    { label: "إجمالي المستخدمين", value: userStats.total, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-    { label: "مستخدمون نشطون", value: userStats.active, icon: UserCheck, color: "text-purple-600", bg: "bg-purple-50" },
+    ...(isSuperAdmin ? [
+      { label: "إجمالي المستخدمين", value: userStats.total, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
+      { label: "مستخدمون نشطون", value: userStats.active, icon: UserCheck, color: "text-purple-600", bg: "bg-purple-50" },
+    ] : []),
   ];
 
   const quickActions = [
     { label: "إضافة عقار جديد", desc: "أضف عقاراً للمنصة", href: "/admin/add-property", icon: Plus, color: "gradient-gold" },
     { label: "إدارة العقارات", desc: "تعديل وحذف العقارات", href: "/admin/properties", icon: List, color: "bg-blue-500" },
-    { label: "إدارة المستخدمين", desc: "صلاحيات وحسابات الأدمن", href: "/admin/users", icon: ShieldCheck, color: "bg-purple-500" },
+    ...(isSuperAdmin ? [{ label: "إدارة المستخدمين", desc: "صلاحيات وحسابات الأدمن", href: "/admin/users", icon: ShieldCheck, color: "bg-purple-500" }] : []),
   ];
 
   return (
@@ -222,7 +235,8 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Recent Users */}
+        {/* Recent Users - super_admin only */}
+        {isSuperAdmin && (
         <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-border">
             <h3 className="font-black text-foreground flex items-center gap-2">
@@ -263,6 +277,7 @@ const Dashboard = () => {
             ))}
           </div>
         </div>
+        )}
 
       </div>
     </AdminLayout>
