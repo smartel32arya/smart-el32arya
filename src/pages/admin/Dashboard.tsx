@@ -35,22 +35,33 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     <div className="min-h-screen bg-secondary/30" dir="rtl">
       {/* Mobile Header */}
       <div className="lg:hidden bg-white border-b border-border px-4 py-3 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <Building2 className="w-6 h-6 text-gold" />
-          <span className="font-black text-lg">لوحة التحكم</span>
-        </div>
         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-lg hover:bg-secondary transition-colors">
           {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
+        <div className="flex items-center gap-2">
+          <span className="font-black text-lg">لوحة التحكم</span>
+          <Building2 className="w-6 h-6 text-gold" />
+        </div>
       </div>
 
       <div className="flex">
         {/* Sidebar */}
         <aside className={`
           fixed lg:sticky top-0 right-0 h-screen bg-white border-l border-border
-          w-64 transition-transform duration-300 z-40 flex flex-col
+          w-72 transition-transform duration-300 z-50 flex flex-col overflow-y-auto
           ${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
         `}>
+          {/* Mobile sidebar header with close button */}
+          <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-border">
+            <button onClick={() => setSidebarOpen(false)} className="p-2 rounded-lg hover:bg-secondary transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="font-black text-base">القائمة</span>
+              <Building2 className="w-5 h-5 text-gold" />
+            </div>
+          </div>
+
           <div className="p-6 border-b border-border hidden lg:block">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-10 h-10 rounded-xl gradient-gold flex items-center justify-center">
@@ -68,7 +79,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           </div>
 
           <nav className="p-4 space-y-1 flex-1">
-            <Link to="/" className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-secondary transition-colors lg:hidden mb-3 border-b border-border pb-4">
+            <Link to="/" className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-secondary transition-colors lg:hidden mb-3 border-b border-border pb-4" onClick={() => setSidebarOpen(false)}>
               <Globe className="w-5 h-5" />
               <span className="font-medium">العودة للموقع</span>
             </Link>
@@ -94,7 +105,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         </aside>
 
         {sidebarOpen && (
-          <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
+          <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
         )}
 
         <main className="flex-1 p-4 lg:p-8 min-w-0">{children}</main>
