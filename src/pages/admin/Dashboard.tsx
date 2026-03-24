@@ -5,8 +5,7 @@ import {
   TrendingUp, Eye, EyeOff, Star, UserCheck, ShieldCheck,
 } from "lucide-react";
 import { SITE_NAME } from "@/config";
-import { useAppSelector } from "@/store/hooks";
-import { selectPropertyStats, selectFeaturedProperties, selectAllProperties } from "@/store/slices/propertiesSlice";
+import { useGetPropertiesQuery, useGetFeaturedPropertiesQuery } from "@/store/api/propertiesApi";
 import { useGetUsersQuery } from "@/store/api/usersApi";
 
 interface AdminLayoutProps {
@@ -115,10 +114,16 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 };
 
 const Dashboard = () => {
-  const propStats = useAppSelector(selectPropertyStats);
-  const featured = useAppSelector(selectFeaturedProperties);
-  const allProperties = useAppSelector(selectAllProperties);
+  const { data: propertiesData } = useGetPropertiesQuery({ neighborhood: "الكل", type: "الكل", priceRange: "all", sort: "newest", page: 1 });
+  const { data: featured = [] } = useGetFeaturedPropertiesQuery();
   const { data: allUsers = [] } = useGetUsersQuery();
+
+  const allProperties = propertiesData?.data ?? [];
+  const propStats = {
+    total: propertiesData?.total ?? 0,
+    active: allProperties.filter((p) => p.active).length,
+    inactive: allProperties.filter((p) => !p.active).length,
+  };
 
   const currentUser = (() => {
     try { return JSON.parse(localStorage.getItem("adminUser") ?? "{}"); } catch { return {}; }
