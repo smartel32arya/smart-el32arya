@@ -78,6 +78,7 @@ const EditProperty = () => {
         amenities: form.amenities,
         featured: form.featured,
         active: form.active,
+        images: existingImages,
       },
     });
     setSaved(true);

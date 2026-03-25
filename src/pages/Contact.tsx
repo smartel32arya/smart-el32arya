@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Phone, MapPin, Clock, MessageCircle, Send, ArrowLeft } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { WHATSAPP_NUMBER, WHATSAPP_DISPLAY, SITE_ADDRESS, SITE_COUNTRY, WORKING_HOURS, WHATSAPP_URL } from "@/config";
+import { WHATSAPP_NUMBER, WHATSAPP_DISPLAY, SITE_ADDRESS, SITE_COUNTRY, WORKING_HOURS, WHATSAPP_URL, PHONE_NUMBERS } from "@/config";
 
 const Contact = () => {
   const [name, setName] = useState("");
@@ -50,7 +50,7 @@ const Contact = () => {
               {[
                 {
                   icon: Phone,
-                  title: "رقم الهاتف",
+                  title: "رقم الواتساب",
                   value: WHATSAPP_DISPLAY,
                   sub: WORKING_HOURS,
                   dir: "ltr" as const,
@@ -84,6 +84,22 @@ const Contact = () => {
                   </div>
                 </div>
               ))}
+
+              {/* Extra phone numbers */}
+              <div className="bg-white rounded-2xl p-5 border border-border shadow-sm">
+                <p className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-3">أرقام التواصل</p>
+                <div className="space-y-2">
+                  {PHONE_NUMBERS.map((p) => (
+                    <a key={p.number} href={`tel:+${p.number}`}
+                      className="flex items-center gap-3 hover:text-gold transition-colors group">
+                      <div className="w-8 h-8 rounded-lg bg-gold/10 flex items-center justify-center shrink-0 group-hover:bg-gold/20 transition-colors">
+                        <Phone className="w-4 h-4 text-gold" />
+                      </div>
+                      <span className="font-bold text-foreground" dir="ltr">{p.display}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
 
               {/* WhatsApp Direct */}
               <a

@@ -145,7 +145,7 @@ export const propertiesApi = createApi({
     }),
 
     /**
-     * PUT /properties/:id
+     * PUT /properties/:id  (application/json — no image upload)
      */
     updateProperty: builder.mutation<void, { id: string; data: Partial<Property> }>({
       queryFn: async ({ id, data }, _api, _extra, baseQuery) => {
@@ -160,7 +160,28 @@ export const propertiesApi = createApi({
       invalidatesTags: (_r, _e, { id }) => [{ type: "Property", id }],
     }),
 
+    /**
+     * POST /admin/properties  (multipart/form-data with images)
+     */
+    createProperty: builder.mutation<Property, FormData>({
+      queryFn: async (formData, _api, _extra, baseQuery) => {
+        if (!BASE_URL) {
+          await new Promise((r) => setTimeout(r, 600));
+          // mock: return a fake property so UI can react
+          return { data: { id: Date.now().toString() } as unknown as Property };
+        }
+        const result = await baseQuery({
+          url: "/admin/properties",
+          method: "POST",
+          body: formData,
+        });
+        if (result.error) return { error: result.error };
+        return { data: result.data as Property };
+      },
+      invalidatesTags: ["Property"],
+    }),
+
   }),
 });
 
-export const { useGetPropertiesQuery, useGetPropertyByIdQuery, useGetFeaturedPropertiesQuery, useDeletePropertyMutation, useUpdatePropertyMutation } = propertiesApi;
+export const { useGetPropertiesQuery, useGetPropertyByIdQuery, useGetFeaturedPropertiesQuery, useDeletePropertyMutation, useUpdatePropertyMutation, useCreatePropertyMutation } = propertiesApi;

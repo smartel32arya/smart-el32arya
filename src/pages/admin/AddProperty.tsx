@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "./Dashboard";
-import { Upload, X, Plus, Star } from "lucide-react";
+import { Upload, X, Plus, Star, Loader2, Video } from "lucide-react";
 import CustomSelect from "@/components/CustomSelect";
 import { NEIGHBORHOODS, PROPERTY_TYPES, AMENITY_SUGGESTIONS } from "@/config";
+import { useCreatePropertyMutation } from "@/store/api/propertiesApi";
 
 interface PropertyFormData {
   title: string;
@@ -17,6 +19,7 @@ interface PropertyFormData {
   featured: boolean;
   active: boolean;
   images: File[];
+  videos: File[];
 }
 
 
@@ -32,15 +35,19 @@ const Card = ({ children, className = "" }: { children: React.ReactNode; classNa
 );
 
 const AddProperty = () => {
+  const navigate = useNavigate();
+  const [createProperty, { isLoading: isSaving }] = useCreatePropertyMutation();
   const [formData, setFormData] = useState<PropertyFormData>({
     title: "", description: "", price: "", neighborhood: "",
     type: "", area: "", bedrooms: "", bathrooms: "",
-    amenities: [], featured: false, active: true, images: [],
+    amenities: [], featured: false, active: true, images: [], videos: [],
   });
   const [dragActive, setDragActive] = useState(false);
+  const [dragVideoActive, setDragVideoActive] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [videoNames, setVideoNames] = useState<string[]>([]);
   const [amenityInput, setAmenityInput] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
 
   const set = (key: keyof PropertyFormData, value: unknown) =>
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -60,6 +67,18 @@ const AddProperty = () => {
     setImagePreviews((p) => p.filter((_, idx) => idx !== i));
   };
 
+  const handleVideos = (files: File[]) => {
+    const vid = files.find((f) => f.type.startsWith("video/"));
+    if (!vid) return;
+    set("videos", [vid]);
+    setVideoNames([vid.name]);
+  };
+
+  const removeVideo = (i: number) => {
+    set("videos", formData.videos.filter((_, idx) => idx !== i));
+    setVideoNames((p) => p.filter((_, idx) => idx !== i));
+  };
+
   const addAmenity = (val: string) => {
     const trimmed = val.trim();
     if (trimmed && !formData.amenities.includes(trimmed)) {
@@ -71,19 +90,31 @@ const AddProperty = () => {
   const removeAmenity = (a: string) =>
     set("amenities", formData.amenities.filter((x) => x !== a));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = {
-      ...formData,
-      price: parseInt(formData.price),
-      area: parseInt(formData.area),
-      bedrooms: parseInt(formData.bedrooms),
-      bathrooms: parseInt(formData.bathrooms),
-      location: "المنيا الجديدة",
-    };
-    console.log("Payload ready for API:", payload);
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
+    setError("");
+    const fd = new FormData();
+    fd.append("title", formData.title);
+    fd.append("description", formData.description);
+    fd.append("price", formData.price);
+    fd.append("neighborhood", formData.neighborhood);
+    fd.append("type", formData.type);
+    fd.append("area", formData.area);
+    fd.append("bedrooms", formData.bedrooms);
+    fd.append("bathrooms", formData.bathrooms);
+    fd.append("location", "المنيا الجديدة");
+    fd.append("featured", String(formData.featured));
+    fd.append("active", String(formData.active));
+    fd.append("amenities", JSON.stringify(formData.amenities));
+    formData.images.forEach((img) => fd.append("images", img));
+    if (formData.videos[0]) fd.append("video", formData.videos[0]);
+
+    try {
+      await createProperty(fd).unwrap();
+      navigate("/admin/properties");
+    } catch {
+      setError("حدث خطأ أثناء إضافة العقار، يرجى المحاولة مرة أخرى");
+    }
   };
 
   // filter out "الكل" from options
@@ -98,10 +129,9 @@ const AddProperty = () => {
           <p className="text-muted-foreground mt-1">أدخل بيانات العقار بالكامل قبل النشر</p>
         </div>
 
-        {submitted && (
-          <div className="mb-6 bg-green-50 border-2 border-green-200 text-green-800 font-bold rounded-2xl px-6 py-4 flex items-center gap-3">
-            <span className="text-2xl">✅</span>
-            تم إعداد البيانات بنجاح — جاهزة للإرسال للـ API
+        {error && (
+          <div className="mb-6 bg-destructive/10 border-2 border-destructive/30 text-destructive font-bold rounded-2xl px-6 py-4">
+            {error}
           </div>
         )}
 
@@ -358,11 +388,50 @@ const AddProperty = () => {
             )}
           </Card>
 
+          {/* Video Upload */}
+          <Card>
+            <label className={labelClass}>فيديو العقار <span className="text-muted-foreground font-normal">(اختياري — فيديو واحد فقط)</span></label>
+            {formData.videos.length === 0 ? (
+              <div
+                onDragEnter={(e) => { e.preventDefault(); setDragVideoActive(true); }}
+                onDragLeave={(e) => { e.preventDefault(); setDragVideoActive(false); }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); setDragVideoActive(false); handleVideos(Array.from(e.dataTransfer.files)); }}
+                className={`border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer ${
+                  dragVideoActive ? "border-gold bg-gold/5" : "border-border hover:border-gold/50 hover:bg-secondary/50"
+                }`}
+              >
+                <input type="file" id="video-upload" accept="video/*" onChange={(e) => e.target.files && handleVideos(Array.from(e.target.files))} className="hidden" />
+                <label htmlFor="video-upload" className="cursor-pointer flex flex-col items-center gap-3">
+                  <div className="w-16 h-16 rounded-2xl bg-blue-500 flex items-center justify-center shadow-lg">
+                    <Video className="w-8 h-8 text-white" />
+                  </div>
+                  <p className="font-bold text-foreground">اسحب الفيديو هنا أو انقر للاختيار</p>
+                  <p className="text-sm text-muted-foreground">MP4, MOV, AVI — فيديو واحد فقط</p>
+                </label>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between bg-secondary rounded-xl px-4 py-3 border border-border">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
+                    <Video className="w-5 h-5 text-white" />
+                  </div>
+                  <p className="text-sm font-bold text-foreground truncate">{videoNames[0]}</p>
+                </div>
+                <button type="button" onClick={() => removeVideo(0)} className="p-1.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </Card>
+
           {/* Submit */}
           <button
             type="submit"
-            className="w-full gradient-gold text-white font-black text-lg py-5 rounded-2xl shadow-xl hover:opacity-90 hover:shadow-2xl transition-all hover:-translate-y-0.5"
+            disabled={isSaving}
+            className="w-full gradient-gold text-white font-black text-lg py-5 rounded-2xl shadow-xl hover:opacity-90 hover:shadow-2xl transition-all hover:-translate-y-0.5 flex items-center justify-center gap-3 disabled:opacity-70"
           >
+            {isSaving && <Loader2 className="w-5 h-5 animate-spin" />}
             نشر العقار
           </button>
 

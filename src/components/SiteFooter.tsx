@@ -1,5 +1,5 @@
 import { Building2, Phone, MapPin } from "lucide-react";
-import { SITE_NAME, SITE_ADDRESS, WHATSAPP_DISPLAY } from "@/config";
+import { SITE_NAME, SITE_ADDRESS, WHATSAPP_DISPLAY, PHONE_NUMBERS } from "@/config";
 
 const SiteFooter = () => {
   return (
@@ -44,6 +44,16 @@ const SiteFooter = () => {
                 </div>
                 <span dir="ltr">{WHATSAPP_DISPLAY}</span>
               </li>
+              {PHONE_NUMBERS.map((p) => (
+                <li key={p.number}>
+                  <a href={`tel:+${p.number}`} className="flex items-center gap-3 hover:text-gold transition-colors">
+                    <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                      <Phone className="w-5 h-5 text-gold" />
+                    </div>
+                    <span dir="ltr">{p.display}</span>
+                  </a>
+                </li>
+              ))}
               <li className="flex items-center gap-3 hover:text-gold transition-colors">
                 <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
                   <MapPin className="w-5 h-5 text-gold" />
