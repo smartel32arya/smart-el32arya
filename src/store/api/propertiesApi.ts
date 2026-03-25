@@ -20,6 +20,7 @@ export interface PropertyFilters {
   priceRange: string;
   sort: "newest" | "price-asc" | "price-desc" | "area-desc";
   page: number;
+  isActive?: boolean;
 }
 
 // ─── Local mock ───────────────────────────────────────────────────────────────
@@ -27,6 +28,8 @@ export interface PropertyFilters {
 // Remove once VITE_API_URL is set.
 function mockFetch(filters: PropertyFilters): PropertiesResponse {
   let result = [...localData];
+  if (filters.isActive === true) result = result.filter((p) => p.active !== false);
+  else if (filters.isActive === false) result = result.filter((p) => p.active === false);
 
   if (filters.neighborhood !== "الكل")
     result = result.filter((p) => p.neighborhood === filters.neighborhood);
@@ -81,6 +84,7 @@ export const propertiesApi = createApi({
           page: String(filters.page),
           pageSize: String(PAGE_SIZE),
         });
+        if (filters.isActive !== undefined) params.set("isActive", String(filters.isActive));
         if (filters.neighborhood !== "الكل") params.set("neighborhood", filters.neighborhood);
         if (filters.type !== "الكل") params.set("type", filters.type);
         if (filters.priceRange !== "all") params.set("priceRange", filters.priceRange);
@@ -129,7 +133,7 @@ export const propertiesApi = createApi({
     }),
 
     /**
-     * DELETE /properties/:id
+     * DELETE /admin/properties/:id
      */
     deleteProperty: builder.mutation<void, string>({
       queryFn: async (id, _api, _extra, baseQuery) => {
@@ -137,7 +141,7 @@ export const propertiesApi = createApi({
           await new Promise((r) => setTimeout(r, 400));
           return { data: undefined };
         }
-        const result = await baseQuery({ url: `/properties/${id}`, method: "DELETE" });
+        const result = await baseQuery({ url: `/admin/properties/${id}`, method: "DELETE" });
         if (result.error) return { error: result.error };
         return { data: undefined };
       },
@@ -145,15 +149,15 @@ export const propertiesApi = createApi({
     }),
 
     /**
-     * PUT /properties/:id  (application/json — no image upload)
+     * PUT /admin/properties/:id  (multipart/form-data — supports image + video upload)
      */
-    updateProperty: builder.mutation<void, { id: string; data: Partial<Property> }>({
+    updateProperty: builder.mutation<void, { id: string; data: FormData }>({
       queryFn: async ({ id, data }, _api, _extra, baseQuery) => {
         if (!BASE_URL) {
           await new Promise((r) => setTimeout(r, 500));
           return { data: undefined };
         }
-        const result = await baseQuery({ url: `/properties/${id}`, method: "PUT", body: data });
+        const result = await baseQuery({ url: `/admin/properties/${id}`, method: "PUT", body: data });
         if (result.error) return { error: result.error };
         return { data: undefined };
       },

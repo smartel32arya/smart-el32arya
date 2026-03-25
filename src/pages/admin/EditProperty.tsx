@@ -4,7 +4,7 @@ import { AdminLayout } from "./Dashboard";
 import { useGetPropertyByIdQuery, useUpdatePropertyMutation } from "@/store/api/propertiesApi";
 import { NEIGHBORHOODS, PROPERTY_TYPES, AMENITY_SUGGESTIONS } from "@/config";
 import CustomSelect from "@/components/CustomSelect";
-import { Star, Save, ArrowRight, Loader2, AlertCircle, X, Plus, Upload, GripVertical } from "lucide-react";
+import { Star, Save, ArrowRight, Loader2, AlertCircle, X, Plus, Upload, Video } from "lucide-react";
 
 
 const inputClass = "w-full bg-secondary text-foreground rounded-xl px-5 h-[54px] border-2 border-border focus:ring-2 focus:ring-gold/30 focus:border-gold outline-none transition-all text-base";
@@ -33,6 +33,11 @@ const EditProperty = () => {
   const [newPreviews, setNewPreviews] = useState<string[]>([]);
   const [dragActive, setDragActive] = useState(false);
 
+  // Video state
+  const [existingVideo, setExistingVideo] = useState<string>("");
+  const [newVideo, setNewVideo] = useState<File | null>(null);
+  const [dragVideoActive, setDragVideoActive] = useState(false);
+
   useEffect(() => {
     if (property) {
       setForm({
@@ -49,6 +54,7 @@ const EditProperty = () => {
         active: property.active ?? true,
       });
       setExistingImages([...property.images]);
+      setExistingVideo(property.video ?? "");
     }
   }, [property]);
 
@@ -64,23 +70,24 @@ const EditProperty = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateProperty({
-      id: id!,
-      data: {
-        title: form.title,
-        description: form.description,
-        price: parseInt(form.price),
-        neighborhood: form.neighborhood,
-        type: form.type,
-        area: parseInt(form.area),
-        bedrooms: parseInt(form.bedrooms),
-        bathrooms: parseInt(form.bathrooms),
-        amenities: form.amenities,
-        featured: form.featured,
-        active: form.active,
-        images: existingImages,
-      },
-    });
+    const fd = new FormData();
+    fd.append("title", form.title);
+    fd.append("description", form.description);
+    fd.append("price", form.price);
+    fd.append("neighborhood", form.neighborhood);
+    fd.append("type", form.type);
+    fd.append("area", form.area);
+    fd.append("bedrooms", form.bedrooms);
+    fd.append("bathrooms", form.bathrooms);
+    fd.append("amenities", JSON.stringify(form.amenities));
+    fd.append("featured", String(form.featured));
+    fd.append("active", String(form.active));
+    fd.append("existingImages", JSON.stringify(existingImages));
+    newImages.forEach((img) => fd.append("images", img));
+    if (newVideo) fd.append("video", newVideo);
+    else if (existingVideo) fd.append("videoUrl", existingVideo);
+
+    await updateProperty({ id: id!, data: fd });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -290,7 +297,7 @@ const EditProperty = () => {
               <Card>
                 <h3 className="font-black text-lg text-foreground mb-5 flex items-center gap-2">
                   <span className="w-1 h-6 gradient-gold rounded-full inline-block" />
-                  صور العقار
+                  صور العقار <span className="text-muted-foreground font-normal text-sm">(اختياري)</span>
                 </h3>
 
                 {/* Existing images */}
@@ -314,12 +321,6 @@ const EditProperty = () => {
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-
-                {existingImages.length === 0 && (
-                  <div className="mb-4 p-4 bg-destructive/5 border border-destructive/20 rounded-xl text-sm text-destructive font-semibold">
-                    ⚠️ لا توجد صور — أضف صورة واحدة على الأقل
                   </div>
                 )}
 
@@ -362,6 +363,82 @@ const EditProperty = () => {
                         </button>
                       </div>
                     ))}
+                  </div>
+                )}
+              </Card>
+
+              {/* Video Upload */}
+              <Card>
+                <h3 className="font-black text-lg text-foreground mb-5 flex items-center gap-2">
+                  <span className="w-1 h-6 gradient-gold rounded-full inline-block" />
+                  فيديو العقار <span className="text-muted-foreground font-normal text-sm">(اختياري — فيديو واحد فقط)</span>
+                </h3>
+
+                {/* Existing video */}
+                {existingVideo && !newVideo && (
+                  <div className="mb-4">
+                    <p className={labelClass}>الفيديو الحالي</p>
+                    <div className="flex items-center justify-between bg-secondary rounded-xl px-4 py-3 border border-border">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
+                          <Video className="w-5 h-5 text-white" />
+                        </div>
+                        <a href={existingVideo} target="_blank" rel="noopener noreferrer"
+                          className="text-sm font-bold text-gold truncate hover:underline">
+                          عرض الفيديو الحالي
+                        </a>
+                      </div>
+                      <button type="button" onClick={() => setExistingVideo("")}
+                        className="p-1.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* New video */}
+                {newVideo ? (
+                  <div className="flex items-center justify-between bg-secondary rounded-xl px-4 py-3 border border-gold/40">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
+                        <Video className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-foreground truncate">{newVideo.name}</p>
+                        <p className="text-xs text-muted-foreground">فيديو جديد</p>
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => setNewVideo(null)}
+                      className="p-1.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onDragEnter={(e) => { e.preventDefault(); setDragVideoActive(true); }}
+                    onDragLeave={(e) => { e.preventDefault(); setDragVideoActive(false); }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault(); setDragVideoActive(false);
+                      const file = Array.from(e.dataTransfer.files).find((f) => f.type.startsWith("video/"));
+                      if (file) setNewVideo(file);
+                    }}
+                    className={`border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer ${
+                      dragVideoActive ? "border-gold bg-gold/5" : "border-border hover:border-gold/50 hover:bg-secondary/50"
+                    }`}
+                  >
+                    <input type="file" id="video-upload-edit" accept="video/*"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) setNewVideo(f); }}
+                      className="hidden" />
+                    <label htmlFor="video-upload-edit" className="cursor-pointer flex flex-col items-center gap-3">
+                      <div className="w-16 h-16 rounded-2xl bg-blue-500 flex items-center justify-center shadow-lg">
+                        <Video className="w-8 h-8 text-white" />
+                      </div>
+                      <p className="font-bold text-foreground">
+                        {existingVideo ? "استبدال الفيديو الحالي" : "اسحب الفيديو هنا أو انقر للاختيار"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">MP4, MOV, AVI — فيديو واحد فقط</p>
+                    </label>
                   </div>
                 )}
               </Card>

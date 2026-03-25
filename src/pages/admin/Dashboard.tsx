@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Building2, Home, Plus, Menu, X, Globe, List, Users,
-  TrendingUp, Eye, EyeOff, Star, UserCheck, ShieldCheck,
+  TrendingUp, Eye, EyeOff, Star, ShieldCheck,
 } from "lucide-react";
 import { SITE_NAME } from "@/config";
 import { useGetPropertiesQuery, useGetFeaturedPropertiesQuery } from "@/store/api/propertiesApi";
@@ -132,7 +132,6 @@ const Dashboard = () => {
 
   const userStats = {
     total: allUsers.length,
-    active: allUsers.filter((u) => u.active).length,
   };
 
   // Last 5 properties
@@ -145,7 +144,6 @@ const Dashboard = () => {
     { label: "عقارات مميزة", value: featured.length, icon: Star, color: "text-yellow-500", bg: "bg-yellow-50" },
     ...(isSuperAdmin ? [
       { label: "إجمالي المستخدمين", value: userStats.total, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-      { label: "مستخدمون نشطون", value: userStats.active, icon: UserCheck, color: "text-purple-600", bg: "bg-purple-50" },
     ] : []),
   ];
 
@@ -282,11 +280,6 @@ const Dashboard = () => {
                       : "bg-blue-50 text-blue-600 border-blue-200"
                   }`}>
                     {u.role === "super_admin" ? "مدير كامل" : "مدير عقارات"}
-                  </span>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
-                    u.active ? "bg-green-50 text-green-600 border-green-200" : "bg-secondary text-muted-foreground border-border"
-                  }`}>
-                    {u.active ? "نشط" : "معطّل"}
                   </span>
                 </div>
               </div>

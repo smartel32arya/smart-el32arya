@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Menu, X, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SITE_NAME } from "@/config";
+import logo from "@/assets/logo.png";
 
 const navLinks = [
   { label: "الرئيسية", href: "/", isRoute: true },
@@ -20,13 +21,10 @@ const SiteHeader = () => {
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-border/50 shadow-sm">
       <div className="container flex items-center justify-between h-16 md:h-20">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-11 h-11 rounded-xl gradient-gold flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow">
-            <Building2 className="w-6 h-6 text-gold-foreground" />
+        <Link to="/" className="flex items-center group">
+          <div className="p-1.5 rounded-xl border-2 border-gold/40 shadow-md group-hover:border-gold transition-colors bg-white">
+            <img src={logo} alt="logo" className="h-10 md:h-12 w-auto object-contain" />
           </div>
-          <span className="text-xl md:text-2xl font-black">
-            <span className="text-gradient-gold">{SITE_NAME}</span>
-          </span>
         </Link>
 
         {/* Desktop Nav */}

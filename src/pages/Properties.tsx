@@ -77,7 +77,7 @@ const Properties = () => {
     if (p) dispatch(setPriceRange(p));
   }, []);
 
-  const { data, isFetching, isLoading, isError, refetch } = useGetPropertiesQuery(filters);
+  const { data, isFetching, isLoading, isError, refetch } = useGetPropertiesQuery({ ...filters, isActive: true });
 
   const properties = data?.data ?? [];
   const total = data?.total ?? 0;

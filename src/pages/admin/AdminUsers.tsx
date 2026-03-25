@@ -24,7 +24,7 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   property_admin: ["إدارة العقارات", "إضافة وتعديل وحذف العقارات"],
 };
 
-const emptyForm = { name: "", username: "", password: "", role: "property_admin" as UserRole, active: true };
+const emptyForm = { name: "", username: "", password: "", role: "property_admin" as UserRole };
 
 const inputClass = "w-full bg-secondary text-foreground rounded-xl px-4 h-[50px] border-2 border-border focus:ring-2 focus:ring-gold/30 focus:border-gold outline-none transition-all text-sm";
 const labelClass = "text-sm font-bold text-foreground mb-1.5 block";
@@ -46,7 +46,6 @@ const AdminUsers = () => {
 
   const stats = {
     total: users.length,
-    active: users.filter((u) => u.active).length,
     superAdmins: users.filter((u) => u.role === "super_admin").length,
     propertyAdmins: users.filter((u) => u.role === "property_admin").length,
   };
@@ -58,7 +57,7 @@ const AdminUsers = () => {
   };
 
   const openEdit = (user: AdminUser) => {
-    setForm({ name: user.name, username: user.username, password: "", role: user.role, active: user.active });
+    setForm({ name: user.name, username: user.username, password: "", role: user.role });
     setFormError("");
     setModal({ open: true, editing: user });
   };
@@ -77,15 +76,18 @@ const AdminUsers = () => {
     setFormError("");
     try {
       if (modal.editing) {
-        const payload: Record<string, unknown> = { name: form.name, username: form.username, role: form.role, active: form.active };
+        const payload: Record<string, unknown> = { name: form.name, username: form.username, role: form.role };
         if (form.password.trim()) payload.password = form.password;
         await updateUser({ id: modal.editing.id, data: payload }).unwrap();
       } else {
-        await createUser({ name: form.name, username: form.username, password: form.password, role: form.role, active: form.active }).unwrap();
+        await createUser({ name: form.name, username: form.username, password: form.password, role: form.role }).unwrap();
       }
       closeModal();
-    } catch {
-      setFormError("حدث خطأ، حاول مجدداً");
+    } catch (err: unknown) {
+      const msg =
+        (err as { data?: { message?: string } })?.data?.message ??
+        "حدث خطأ، حاول مجدداً";
+      setFormError(msg);
     }
   };
 
@@ -113,10 +115,9 @@ const AdminUsers = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
           {[
             { label: "الإجمالي", value: stats.total, color: "text-foreground" },
-            { label: "نشط", value: stats.active, color: "text-green-600" },
             { label: "مدير كامل", value: stats.superAdmins, color: "text-gold" },
             { label: "مدير عقارات", value: stats.propertyAdmins, color: "text-blue-600" },
           ].map((s) => (
@@ -162,7 +163,6 @@ const AdminUsers = () => {
                   <tr className="bg-secondary border-b border-border text-muted-foreground text-xs font-bold uppercase tracking-wider">
                     <th className="px-4 py-3 text-right">المستخدم</th>
                     <th className="px-4 py-3 text-right">الصلاحية</th>
-                    <th className="px-4 py-3 text-center">الحالة</th>
                     <th className="px-4 py-3 text-right hidden md:table-cell">تاريخ الإضافة</th>
                     <th className="px-4 py-3 text-center">إجراءات</th>
                   </tr>
@@ -171,7 +171,7 @@ const AdminUsers = () => {
                   {isLoading
                     ? Array.from({ length: 3 }).map((_, i) => (
                         <tr key={i} className="border-b border-border animate-pulse">
-                          {[1,2,3,4,5].map((j) => (
+                          {[1,2,3,4].map((j) => (
                             <td key={j} className="px-4 py-4"><div className="h-4 bg-muted rounded w-3/4" /></td>
                           ))}
                         </tr>
@@ -189,18 +189,6 @@ const AdminUsers = () => {
                               {user.role === "super_admin" ? <ShieldCheck className="w-3 h-3" /> : <Shield className="w-3 h-3" />}
                               {ROLE_LABELS[user.role]}
                             </span>
-                          </td>
-                          <td className="px-4 py-4 text-center">
-                            <button
-                              onClick={() => updateUser({ id: user.id, data: { active: !user.active } })}
-                              className={`px-3 py-1 rounded-full text-xs font-bold border transition-all ${
-                                user.active
-                                  ? "bg-green-50 text-green-600 border-green-200 hover:bg-green-100"
-                                  : "bg-secondary text-muted-foreground border-border hover:border-green-300"
-                              }`}
-                            >
-                              {user.active ? "نشط" : "معطّل"}
-                            </button>
                           </td>
                           <td className="px-4 py-4 text-muted-foreground text-xs hidden md:table-cell">{user.createdAt}</td>
                           <td className="px-4 py-4">
@@ -279,21 +267,6 @@ const AdminUsers = () => {
                   {ROLE_PERMISSIONS[form.role].join(" • ")}
                 </p>
               </div>
-              <div>
-                <button type="button" onClick={() => setForm((p) => ({ ...p, active: !p.active }))}
-                  className={`w-full flex items-center justify-between p-3.5 rounded-xl border-2 transition-all ${
-                    form.active ? "border-green-400 bg-green-50" : "border-border bg-secondary"
-                  }`}>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2.5 h-2.5 rounded-full ${form.active ? "bg-green-500" : "bg-muted-foreground"}`} />
-                    <span className="font-bold text-sm text-foreground">{form.active ? "حساب نشط" : "حساب معطّل"}</span>
-                  </div>
-                  <div className={`w-10 h-5 rounded-full transition-all ${form.active ? "bg-green-500" : "bg-border"}`}>
-                    <div className={`w-4 h-4 bg-white rounded-full shadow mt-0.5 transition-all ${form.active ? "mr-0.5" : "mr-5"}`} />
-                  </div>
-                </button>
-              </div>
-
               {formError && (
                 <p className="text-destructive text-sm font-semibold bg-destructive/5 border border-destructive/20 px-4 py-2.5 rounded-xl">
                   {formError}

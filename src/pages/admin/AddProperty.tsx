@@ -345,7 +345,7 @@ const AddProperty = () => {
 
           {/* Image Upload */}
           <Card>
-            <label className={labelClass}>صور العقار <span className="text-destructive">*</span></label>
+            <label className={labelClass}>صور العقار <span className="text-muted-foreground font-normal">(اختياري)</span></label>
             <div
               onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
               onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}

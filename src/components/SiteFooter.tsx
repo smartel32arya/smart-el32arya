@@ -1,5 +1,6 @@
 import { Building2, Phone, MapPin } from "lucide-react";
 import { SITE_NAME, SITE_ADDRESS, WHATSAPP_DISPLAY, PHONE_NUMBERS } from "@/config";
+import logo from "@/assets/logo.png";
 
 const SiteFooter = () => {
   return (
@@ -13,10 +14,7 @@ const SiteFooter = () => {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-3 mb-5">
-              <div className="w-12 h-12 rounded-xl gradient-gold flex items-center justify-center shadow-xl">
-                <Building2 className="w-7 h-7 text-gold-foreground" />
-              </div>
-              <span className="text-2xl font-black">{SITE_NAME}</span>
+              <img src={logo} alt="logo" className="h-14 w-auto object-contain brightness-0 invert" />
             </div>
             <p className="text-primary-foreground/80 text-base leading-relaxed">
               أكبر منصة عقارية متخصصة في المنيا الجديدة. نساعدك في إيجاد عقارك المثالي بأفضل الأسعار.

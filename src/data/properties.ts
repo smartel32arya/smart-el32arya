@@ -23,6 +23,7 @@ export interface Property {
   amenities: string[];
   featured: boolean;
   active: boolean;
+  video?: string;
 }
 
 export const properties: Property[] = [
