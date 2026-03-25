@@ -14,7 +14,9 @@ const SiteFooter = () => {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-3 mb-5">
-              <img src={logo} alt="logo" className="h-14 w-auto object-contain brightness-0 invert" />
+              <div className="p-1.5 rounded-xl border-2 border-gold/40 bg-white/10 shadow-md inline-block">
+                <img src={logo} alt="logo" className="h-14 w-auto object-contain" />
+              </div>
             </div>
             <p className="text-primary-foreground/80 text-base leading-relaxed">
               أكبر منصة عقارية متخصصة في المنيا الجديدة. نساعدك في إيجاد عقارك المثالي بأفضل الأسعار.

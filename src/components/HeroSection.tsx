@@ -65,7 +65,7 @@ const HeroSection = () => {
           className="text-white/90 text-lg md:text-xl lg:text-2xl max-w-3xl mx-auto mb-12 animate-fade-in-up font-medium"
           style={{ animationDelay: "0.2s" }}
         >
-          أكبر منصة عقارية متخصصة - شقق، فلل، دوبلكس، ومحلات تجارية
+          أكبر منصة عقارية في المنيا
         </p>
 
         {/* Search Bar */}
