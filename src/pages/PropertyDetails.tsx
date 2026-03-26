@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   ArrowRight, MapPin, BedDouble, Bath, Maximize,
   MessageCircle, Send, CheckCircle2, AlertCircle, ArrowLeft,
+  Play, Image, ChevronLeft, ChevronRight, X, ZoomIn,
 } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { useGetPropertyByIdQuery } from "@/store/api/propertiesApi";
-import { WHATSAPP_NUMBER, WHATSAPP_URL } from "@/config";
+import { WHATSAPP_NUMBER } from "@/config";
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 const Skeleton = ({ className }: { className?: string }) => (
@@ -55,11 +56,24 @@ const PropertyDetailsSkeleton = () => (
 
 const PropertyDetails = () => {
   const { id } = useParams<{ id: string }>();
-  const [activeImage, setActiveImage] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState<"photos" | "video">("photos");
+  const [lightbox, setLightbox] = useState(false);
   const [name, setName] = useState("");
   const [msgText, setMsgText] = useState("");
 
   const { data: property, isLoading, isError, refetch } = useGetPropertyByIdQuery(id ?? "");
+
+  useEffect(() => {
+    if (!lightbox || !property) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft")  setActiveIndex((i) => (i + 1) % property.images.length);
+      if (e.key === "ArrowRight") setActiveIndex((i) => (i - 1 + property.images.length) % property.images.length);
+      if (e.key === "Escape")     setLightbox(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [lightbox, property]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +82,7 @@ const PropertyDetails = () => {
       property.area ? `${property.area} م²` : "",
       property.bedrooms > 0 ? `${property.bedrooms} غرف` : "",
       property.bathrooms ? `${property.bathrooms} حمام` : "",
-      property.priceFormatted,
+      property.showPrice !== false ? property.priceFormatted : "أريد معرفة السعر",
       `${property.neighborhood} - ${property.location}`,
     ].filter(Boolean).join(" | ");
 
@@ -115,7 +129,63 @@ const PropertyDetails = () => {
             </div>
           )}
 
-          {/* ── Not Found ── */}
+          {/* ── Lightbox ── */}
+          {lightbox && property && (
+            <div
+              className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+              onClick={() => setLightbox(false)}
+            >
+              {/* close */}
+              <button className="absolute top-4 end-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors z-10">
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* counter */}
+              <span className="absolute top-4 start-4 bg-white/10 text-white text-sm font-bold px-3 py-1.5 rounded-full">
+                {activeIndex + 1} / {property.images.length}
+              </span>
+
+              {/* image */}
+              <img
+                src={property.images[activeIndex] || "/placeholder.svg"}
+                alt={property.title}
+                className="max-w-[90vw] max-h-[85vh] object-contain rounded-xl select-none"
+                onClick={(e) => e.stopPropagation()}
+              />
+
+              {/* prev */}
+              {property.images.length > 1 && (
+                <>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setActiveIndex((i) => (i - 1 + property.images.length) % property.images.length); }}
+                    className="absolute start-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors"
+                  >
+                    <ChevronRight className="w-6 h-6" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setActiveIndex((i) => (i + 1) % property.images.length); }}
+                    className="absolute end-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors"
+                  >
+                    <ChevronLeft className="w-6 h-6" />
+                  </button>
+                </>
+              )}
+
+              {/* thumbnails strip */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 px-4 py-2 bg-black/60 rounded-2xl overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                {property.images.map((img, i) => (
+                  <button
+                    key={i}
+                    onClick={(e) => { e.stopPropagation(); setActiveIndex(i); }}
+                    className={`shrink-0 rounded-lg overflow-hidden transition-all ${i === activeIndex ? "ring-2 ring-gold opacity-100" : "opacity-40 hover:opacity-70"}`}
+                    style={{ width: 56, height: 40 }}
+                  >
+                    <img src={img} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {!isLoading && !isError && !property && (
             <div className="text-center py-32">
               <p className="text-foreground font-bold text-xl mb-4">العقار غير موجود</p>
@@ -130,32 +200,138 @@ const PropertyDetails = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
               {/* Main Content */}
               <div className="lg:col-span-2 space-y-8">
-                {/* Image Gallery */}
-                <div className="rounded-2xl overflow-hidden border border-border shadow-lg">
-                  <img
-                    src={property.images[activeImage] || "/placeholder.svg"}
-                    alt={property.title}
-                    className="w-full h-72 sm:h-96 md:h-[500px] object-cover"
-                    loading="eager"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/placeholder.svg"; }}
-                  />
-                  {property.images.length > 1 && (
-                    <div className="flex gap-3 p-4 overflow-x-auto bg-secondary/50">
-                      {property.images.map((img, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setActiveImage(i)}
-                          className={`shrink-0 w-24 h-20 rounded-xl overflow-hidden transition-all ${
-                            i === activeImage
-                              ? "ring-2 ring-gold shadow-lg scale-105"
-                              : "opacity-60 hover:opacity-100"
-                          }`}
-                        >
-                          <img src={img || "/placeholder.svg"} alt="" className="w-full h-full object-cover"
-                            onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/placeholder.svg"; }} />
-                        </button>
-                      ))}
+                {/* ── Media Gallery ── */}
+                <div className="rounded-3xl overflow-hidden border border-border shadow-lg bg-black">
+
+                  {/* Tab bar — only show if video exists */}
+                  {property.video && (
+                    <div className="flex bg-black/90 border-b border-white/10">
+                      <button
+                        onClick={() => setActiveTab("photos")}
+                        className={`flex items-center gap-2 px-5 py-3 text-sm font-bold transition-colors ${
+                          activeTab === "photos"
+                            ? "text-gold border-b-2 border-gold"
+                            : "text-white/50 hover:text-white/80"
+                        }`}
+                      >
+                        <Image className="w-4 h-4" />
+                        الصور ({property.images.length})
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("video")}
+                        className={`flex items-center gap-2 px-5 py-3 text-sm font-bold transition-colors ${
+                          activeTab === "video"
+                            ? "text-gold border-b-2 border-gold"
+                            : "text-white/50 hover:text-white/80"
+                        }`}
+                      >
+                        <Play className="w-4 h-4" />
+                        فيديو
+                      </button>
                     </div>
+                  )}
+
+                  {/* ── Video tab ── */}
+                  {activeTab === "video" && property.video && (
+                    <div className="relative bg-black" style={{ aspectRatio: "16/9" }}>
+                      <video
+                        src={property.video}
+                        controls
+                        className="w-full h-full object-contain"
+                        poster={property.images[0] || "/placeholder.svg"}
+                      />
+                    </div>
+                  )}
+
+                  {/* ── Photos tab ── */}
+                  {activeTab === "photos" && (
+                    <>
+                      {/* Main image */}
+                      <div className="relative bg-black group" style={{ aspectRatio: "16/9" }}>
+                        <img
+                          src={property.images[activeIndex] || "/placeholder.svg"}
+                          alt={property.title}
+                          className="w-full h-full object-cover cursor-zoom-in"
+                          loading="eager"
+                          onClick={() => setLightbox(true)}
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/placeholder.svg"; }}
+                        />
+
+                        {/* zoom hint */}
+                        <button
+                          onClick={() => setLightbox(true)}
+                          className="absolute top-4 end-4 w-9 h-9 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-sm text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                        >
+                          <ZoomIn className="w-4 h-4" />
+                        </button>
+
+                        {/* counter badge */}
+                        <span className="absolute top-4 start-4 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-full">
+                          {activeIndex + 1} / {property.images.length}
+                        </span>
+
+                        {/* nav arrows */}
+                        {property.images.length > 1 && (
+                          <>
+                            <button
+                              onClick={() => setActiveIndex((i) => (i - 1 + property.images.length) % property.images.length)}
+                              className="absolute top-1/2 start-3 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-sm text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                            >
+                              <ChevronRight className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => setActiveIndex((i) => (i + 1) % property.images.length)}
+                              className="absolute top-1/2 end-3 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-sm text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                            >
+                              <ChevronLeft className="w-5 h-5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Thumbnails */}
+                      {property.images.length > 1 && (
+                        <div className="flex gap-2 p-3 overflow-x-auto bg-black/80 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                          {property.images.map((img, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setActiveIndex(i)}
+                              className={`shrink-0 rounded-xl overflow-hidden transition-all duration-200 ${
+                                i === activeIndex
+                                  ? "ring-2 ring-gold opacity-100 scale-105"
+                                  : "opacity-50 hover:opacity-80"
+                              }`}
+                              style={{ width: 80, height: 56 }}
+                            >
+                              <img
+                                src={img || "/placeholder.svg"}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/placeholder.svg"; }}
+                              />
+                            </button>
+                          ))}
+
+                          {/* video thumbnail shortcut */}
+                          {property.video && (
+                            <button
+                              onClick={() => setActiveTab("video")}
+                              className="shrink-0 rounded-xl overflow-hidden opacity-60 hover:opacity-100 transition-all relative bg-black"
+                              style={{ width: 80, height: 56 }}
+                            >
+                              <img
+                                src={property.images[0] || "/placeholder.svg"}
+                                alt="video"
+                                className="w-full h-full object-cover"
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                                <Play className="w-5 h-5 text-white fill-white" />
+                              </div>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -171,7 +347,23 @@ const PropertyDetails = () => {
                     <MapPin className="w-5 h-5 text-gold" />
                     <span className="font-semibold">{property.neighborhood} - {property.location}</span>
                   </div>
-                  <div className="text-gold font-black text-3xl md:text-4xl">{property.priceFormatted}</div>
+                  {property.showPrice === false ? (
+                    <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5">
+                      <p className="text-amber-800 font-black text-lg mb-1">لمعرفه السعر عند الجدية - تواصل معنا</p>
+                      <p className="text-amber-700 text-sm mb-4">هذا العقار بسعر خاص — تواصل معنا الآن واحصل على السعر فوراً</p>
+                      <a
+                        href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`مرحباً، أريد الاستفسار عن سعر العقار:\n${property.title}\nالتفاصيل: ${[property.type, property.area ? `${property.area} م²` : "", property.bedrooms > 0 ? `${property.bedrooms} غرف` : "", property.bathrooms ? `${property.bathrooms} حمام` : "", `${property.neighborhood} - ${property.location}`].filter(Boolean).join(" | ")}`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe5d] text-white font-black px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all"
+                      >
+                        <MessageCircle className="w-5 h-5" />
+                        اسأل عن السعر عبر واتساب
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="text-gold font-black text-3xl md:text-4xl">{property.priceFormatted}</div>
+                  )}
                 </div>
 
                 {/* Specs */}
@@ -265,7 +457,7 @@ const PropertyDetails = () => {
                           {[
                             `مرحباً، أنا ${name || "..."}`,
                             `أريد الاستفسار عن: ${property.title}`,
-                            `التفاصيل: ${[property.type, property.area ? `${property.area} م²` : "", property.bedrooms > 0 ? `${property.bedrooms} غرف` : "", property.bathrooms ? `${property.bathrooms} حمام` : "", property.priceFormatted, `${property.neighborhood} - ${property.location}`].filter(Boolean).join(" | ")}`,
+                            `التفاصيل: ${[property.type, property.area ? `${property.area} م²` : "", property.bedrooms > 0 ? `${property.bedrooms} غرف` : "", property.bathrooms ? `${property.bathrooms} حمام` : "", property.showPrice !== false ? property.priceFormatted : "السعر غير معروض", `${property.neighborhood} - ${property.location}`].filter(Boolean).join(" | ")}`,
                             msgText ? `الرسالة: ${msgText}` : "",
                           ].filter(Boolean).join("\n")}
                         </p>
@@ -284,7 +476,7 @@ const PropertyDetails = () => {
                   {/* Direct WhatsApp */}
                   <div className="mt-4 pt-4 border-t border-border">
                     <a
-                      href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`مرحباً، أريد الاستفسار عن: ${property.title}\nالتفاصيل: ${[property.type, property.area ? `${property.area} م²` : "", property.bedrooms > 0 ? `${property.bedrooms} غرف` : "", property.bathrooms ? `${property.bathrooms} حمام` : "", property.priceFormatted, `${property.neighborhood} - ${property.location}`].filter(Boolean).join(" | ")}`)}`}
+                      href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`مرحباً، أريد الاستفسار عن: ${property.title}\nالتفاصيل: ${[property.type, property.area ? `${property.area} م²` : "", property.bedrooms > 0 ? `${property.bedrooms} غرف` : "", property.bathrooms ? `${property.bathrooms} حمام` : "", property.showPrice !== false ? property.priceFormatted : "أريد معرفة السعر", `${property.neighborhood} - ${property.location}`].filter(Boolean).join(" | ")}`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="group flex items-center justify-between w-full bg-secondary hover:bg-secondary/80 text-foreground font-bold rounded-2xl px-5 py-4 transition-all border-2 border-border hover:border-[#25D366]/40"

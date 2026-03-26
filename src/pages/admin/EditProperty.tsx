@@ -5,6 +5,7 @@ import { useGetPropertyByIdQuery, useUpdatePropertyMutation } from "@/store/api/
 import { NEIGHBORHOODS, PROPERTY_TYPES, AMENITY_SUGGESTIONS } from "@/config";
 import CustomSelect from "@/components/CustomSelect";
 import { Star, Save, ArrowRight, Loader2, AlertCircle, X, Plus, Upload, Video } from "lucide-react";
+import { toast } from "sonner";
 
 
 const inputClass = "w-full bg-secondary text-foreground rounded-xl px-5 h-[54px] border-2 border-border focus:ring-2 focus:ring-gold/30 focus:border-gold outline-none transition-all text-base";
@@ -18,13 +19,12 @@ const EditProperty = () => {
   const navigate = useNavigate();
   const { data: property, isLoading, isError } = useGetPropertyByIdQuery(id ?? "");
   const [updateProperty, { isLoading: isSaving }] = useUpdatePropertyMutation();
-  const [saved, setSaved] = useState(false);
   const [amenityInput, setAmenityInput] = useState("");
 
   const [form, setForm] = useState({
     title: "", description: "", price: "", neighborhood: "",
     type: "", area: "", bedrooms: "", bathrooms: "",
-    amenities: [] as string[], featured: false, active: true,
+    amenities: [] as string[], featured: false, active: true, showPrice: true,
   });
 
   // Images state: existing URLs + new File uploads
@@ -52,6 +52,7 @@ const EditProperty = () => {
         amenities: [...property.amenities],
         featured: property.featured,
         active: property.active ?? true,
+        showPrice: property.showPrice !== false,
       });
       setExistingImages([...property.images]);
       setExistingVideo(property.video ?? "");
@@ -70,6 +71,7 @@ const EditProperty = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (Number(form.price) < 55000) return;
     const fd = new FormData();
     fd.append("title", form.title);
     fd.append("description", form.description);
@@ -82,14 +84,18 @@ const EditProperty = () => {
     fd.append("amenities", JSON.stringify(form.amenities));
     fd.append("featured", String(form.featured));
     fd.append("active", String(form.active));
+    fd.append("showPrice", String(form.showPrice));
     fd.append("existingImages", JSON.stringify(existingImages));
     newImages.forEach((img) => fd.append("images", img));
     if (newVideo) fd.append("video", newVideo);
     else if (existingVideo) fd.append("videoUrl", existingVideo);
 
     await updateProperty({ id: id!, data: fd });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    toast.success("تم حفظ التعديلات بنجاح", {
+      description: `تم تحديث بيانات "${form.title}"`,
+      duration: 4000,
+    });
+    navigate("/admin/properties");
   };
 
   const neighborhoods = NEIGHBORHOODS.filter((n) => n !== "الكل");
@@ -151,13 +157,6 @@ const EditProperty = () => {
         {/* Form */}
         {!isLoading && !isError && property && (
           <>
-            {saved && (
-              <div className="mb-6 bg-green-50 border-2 border-green-200 text-green-800 font-bold rounded-2xl px-6 py-4 flex items-center gap-3">
-                <span className="text-2xl">✅</span>
-                تم حفظ التعديلات بنجاح
-              </div>
-            )}
-
             <form onSubmit={handleSubmit} className="space-y-6">
               <Card>
                 <label className={labelClass}>عنوان العقار <span className="text-destructive">*</span></label>
@@ -170,13 +169,33 @@ const EditProperty = () => {
                   className="w-full bg-secondary text-foreground rounded-xl px-5 py-4 border-2 border-border focus:ring-2 focus:ring-gold/30 focus:border-gold outline-none transition-all text-base resize-none" />
               </Card>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                 <Card>
                   <label className={labelClass}>السعر (جنيه مصري) <span className="text-destructive">*</span></label>
-                  <input type="number" value={form.price} onChange={(e) => set("price", e.target.value)} required min="0" className={inputClass} />
-                  {form.price && (
+                  <input type="number" value={form.price} onChange={(e) => set("price", e.target.value)} required min="55000"
+                    className={`${inputClass} ${form.price && Number(form.price) < 55000 ? "border-destructive focus:border-destructive" : ""}`} />
+                  {form.price && Number(form.price) < 55000 ? (
+                    <p className="text-destructive font-bold text-sm mt-2">أدخل سعر العقار الفعلي</p>
+                  ) : form.price ? (
                     <p className="text-gold font-bold text-sm mt-2">{Number(form.price).toLocaleString("ar-EG")} ج.م</p>
-                  )}
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => set("showPrice", !form.showPrice)}
+                    className={`mt-3 w-full flex items-center justify-between px-4 py-2.5 rounded-xl border-2 transition-all ${
+                      form.showPrice ? "border-gold/40 bg-gold/5" : "border-amber-300 bg-amber-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2.5 h-2.5 rounded-full ${form.showPrice ? "bg-gold" : "bg-amber-400"}`} />
+                      <span className="text-sm font-bold text-foreground">
+                        {form.showPrice ? "السعر ظاهر للزوار" : "السعر مخفي عن الزوار"}
+                      </span>
+                    </div>
+                    <div className={`w-10 h-5 rounded-full transition-all ${form.showPrice ? "gradient-gold" : "bg-amber-300"}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full shadow mt-0.5 transition-all ${form.showPrice ? "mr-0.5" : "mr-5"}`} />
+                    </div>
+                  </button>
                 </Card>
                 <Card>
                   <label className={labelClass}>الحي <span className="text-destructive">*</span></label>

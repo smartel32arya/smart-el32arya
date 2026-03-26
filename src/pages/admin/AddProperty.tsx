@@ -5,6 +5,7 @@ import { Upload, X, Plus, Star, Loader2, Video } from "lucide-react";
 import CustomSelect from "@/components/CustomSelect";
 import { NEIGHBORHOODS, PROPERTY_TYPES, AMENITY_SUGGESTIONS } from "@/config";
 import { useCreatePropertyMutation } from "@/store/api/propertiesApi";
+import { toast } from "sonner";
 
 interface PropertyFormData {
   title: string;
@@ -18,6 +19,7 @@ interface PropertyFormData {
   amenities: string[];
   featured: boolean;
   active: boolean;
+  showPrice: boolean;
   images: File[];
   videos: File[];
 }
@@ -40,7 +42,7 @@ const AddProperty = () => {
   const [formData, setFormData] = useState<PropertyFormData>({
     title: "", description: "", price: "", neighborhood: "",
     type: "", area: "", bedrooms: "", bathrooms: "",
-    amenities: [], featured: false, active: true, images: [], videos: [],
+    amenities: [], featured: false, active: true, showPrice: true, images: [], videos: [],
   });
   const [dragActive, setDragActive] = useState(false);
   const [dragVideoActive, setDragVideoActive] = useState(false);
@@ -93,6 +95,10 @@ const AddProperty = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (Number(formData.price) < 55000) {
+      setError("السعر يجب أن يكون أكبر من ٥٥,٠٠٠ ج.م");
+      return;
+    }
     const fd = new FormData();
     fd.append("title", formData.title);
     fd.append("description", formData.description);
@@ -105,12 +111,17 @@ const AddProperty = () => {
     fd.append("location", "المنيا الجديدة");
     fd.append("featured", String(formData.featured));
     fd.append("active", String(formData.active));
+    fd.append("showPrice", String(formData.showPrice));
     fd.append("amenities", JSON.stringify(formData.amenities));
     formData.images.forEach((img) => fd.append("images", img));
     if (formData.videos[0]) fd.append("video", formData.videos[0]);
 
     try {
       await createProperty(fd).unwrap();
+      toast.success("تم نشر العقار بنجاح", {
+        description: `"${formData.title}" أصبح متاحاً الآن للزوار`,
+        duration: 4000,
+      });
       navigate("/admin/properties");
     } catch {
       setError("حدث خطأ أثناء إضافة العقار، يرجى المحاولة مرة أخرى");
@@ -164,7 +175,7 @@ const AddProperty = () => {
           </Card>
 
           {/* Price + Neighborhood */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
             <Card>
               <label className={labelClass}>السعر (جنيه مصري) <span className="text-destructive">*</span></label>
               <input
@@ -172,15 +183,36 @@ const AddProperty = () => {
                 value={formData.price}
                 onChange={(e) => set("price", e.target.value)}
                 required
-                min="0"
+                min="55000"
                 placeholder="2500000"
-                className={inputClass}
+                className={`${inputClass} ${formData.price && Number(formData.price) < 55000 ? "border-destructive focus:border-destructive" : ""}`}
               />
-              {formData.price && (
+              {formData.price && Number(formData.price) < 55000 ? (
+                <p className="text-destructive font-bold text-sm mt-2">أدخل سعر العقار الفعلي</p>
+              ) : formData.price ? (
                 <p className="text-gold font-bold text-sm mt-2">
                   {Number(formData.price).toLocaleString("ar-EG")} ج.م
                 </p>
-              )}
+              ) : null}
+              <button
+                type="button"
+                onClick={() => set("showPrice", !formData.showPrice)}
+                className={`mt-3 w-full flex items-center justify-between px-4 py-2.5 rounded-xl border-2 transition-all ${
+                  formData.showPrice
+                    ? "border-gold/40 bg-gold/5"
+                    : "border-amber-300 bg-amber-50"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className={`w-2.5 h-2.5 rounded-full ${formData.showPrice ? "bg-gold" : "bg-amber-400"}`} />
+                  <span className="text-sm font-bold text-foreground">
+                    {formData.showPrice ? "السعر ظاهر للزوار" : "السعر مخفي عن الزوار"}
+                  </span>
+                </div>
+                <div className={`w-10 h-5 rounded-full transition-all ${formData.showPrice ? "gradient-gold" : "bg-amber-300"}`}>
+                  <div className={`w-4 h-4 bg-white rounded-full shadow mt-0.5 transition-all ${formData.showPrice ? "mr-0.5" : "mr-5"}`} />
+                </div>
+              </button>
             </Card>
 
             <Card>
