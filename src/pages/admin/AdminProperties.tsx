@@ -1,30 +1,34 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminLayout } from "./Dashboard";
-import { useGetPropertiesQuery, useDeletePropertyMutation, PAGE_SIZE } from "@/store/api/propertiesApi";
+import { useGetAdminPropertiesQuery, useDeletePropertyMutation, PAGE_SIZE } from "@/store/api/propertiesApi";
 import { NEIGHBORHOODS, PROPERTY_TYPES } from "@/config";
-import { Pencil, Trash2, Plus, ChevronRight, ChevronLeft, Star, AlertCircle, Loader2 } from "lucide-react";
+import { Pencil, Trash2, Plus, ChevronRight, ChevronLeft, Star, Loader2, CheckCircle2, XCircle, UserCheck, UserX, Building2 } from "lucide-react";
 import CustomSelect from "@/components/CustomSelect";
 import type { SortOption } from "@/store/slices/filtersSlice";
+import { ErrorState } from "@/components/common/ErrorState";
 
 const ADMIN_PAGE_SIZE = 10;
 
-const SkeletonRow = () => (
+const SkeletonRow = ({ isSuperAdmin }: { isSuperAdmin: boolean }) => (
   <tr className="border-b border-border animate-pulse">
-    {[1,2,3,4,5,6].map((i) => (
+    {Array.from({ length: isSuperAdmin ? 8 : 6 }).map((_, i) => (
       <td key={i} className="px-4 py-4"><div className="h-4 bg-muted rounded w-3/4" /></td>
     ))}
   </tr>
 );
 
 const AdminProperties = () => {
+  const adminUser = JSON.parse(localStorage.getItem("adminUser") ?? "{}");
+  const role = adminUser?.role as string | undefined;
+
   const [page, setPage] = useState(1);
   const [neighborhood, setNeighborhood] = useState("الكل");
   const [type, setType] = useState("الكل");
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const filters = { neighborhood, type, priceRange: "all", sort: "newest" as SortOption, page };
-  const { data, isLoading, isError, refetch, isFetching } = useGetPropertiesQuery(filters);
+  const { data, isLoading, isError, error, refetch, isFetching } = useGetAdminPropertiesQuery(filters);
   const [deleteProperty, { isLoading: isDeleting }] = useDeletePropertyMutation();
 
   const properties = data?.data ?? [];
@@ -85,11 +89,11 @@ const AdminProperties = () => {
         {/* Table */}
         <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
           {isError ? (
-            <div className="flex flex-col items-center py-20 gap-3 text-center">
-              <AlertCircle className="w-10 h-10 text-destructive" />
-              <p className="font-bold text-foreground">تعذّر تحميل العقارات</p>
-              <button onClick={refetch} className="gradient-gold text-white font-bold px-5 py-2.5 rounded-xl text-sm">إعادة المحاولة</button>
-            </div>
+            <ErrorState
+              statusCode={(error as any)?.status}
+              apiMessage={(error as any)?.data?.message}
+              onRetry={refetch}
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -100,12 +104,43 @@ const AdminProperties = () => {
                     <th className="px-4 py-3 text-right">الحي</th>
                     <th className="px-4 py-3 text-right">السعر</th>
                     <th className="px-4 py-3 text-center">لقطة</th>
+                    <th className="px-4 py-3 text-center">نشط</th>
+                    {role === "super_admin" && (
+                      <>
+                        <th className="px-4 py-3 text-right">المعلن</th>
+                        <th className="px-4 py-3 text-center">حالة المعلن</th>
+                      </>
+                    )}
                     <th className="px-4 py-3 text-center">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading || (isFetching && !properties.length)
-                    ? Array.from({ length: ADMIN_PAGE_SIZE }).map((_, i) => <SkeletonRow key={i} />)
+                    ? Array.from({ length: ADMIN_PAGE_SIZE }).map((_, i) => <SkeletonRow key={i} isSuperAdmin={role === "super_admin"} />)
+                    : !properties.length
+                    ? (
+                      <tr>
+                        <td colSpan={role === "super_admin" ? 9 : 7} className="py-20 text-center">
+                          <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                            <Building2 className="w-12 h-12 opacity-30" />
+                            <p className="font-bold text-base text-foreground">لا توجد عقارات</p>
+                            <p className="text-sm">
+                              {neighborhood !== "الكل" || type !== "الكل"
+                                ? "لا توجد نتائج تطابق الفلاتر المحددة"
+                                : "لم يتم إضافة أي عقارات بعد"}
+                            </p>
+                            {(neighborhood !== "الكل" || type !== "الكل") && (
+                              <button
+                                onClick={() => { setNeighborhood("الكل"); setType("الكل"); setPage(1); }}
+                                className="mt-1 text-sm text-gold font-bold hover:underline"
+                              >
+                                مسح الفلاتر
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
                     : properties.map((p) => (
                       <tr key={p.id} className="border-b border-border hover:bg-secondary/40 transition-colors">
                         <td className="px-4 py-3">
@@ -128,6 +163,23 @@ const AdminProperties = () => {
                             : <span className="text-muted-foreground text-xs">—</span>
                           }
                         </td>
+                        <td className="px-4 py-3 text-center">
+                          {p.active
+                            ? <CheckCircle2 className="w-4 h-4 text-green-500 mx-auto" />
+                            : <XCircle className="w-4 h-4 text-muted-foreground mx-auto" />
+                          }
+                        </td>
+                        {role === "super_admin" && (
+                          <>
+                            <td className="px-4 py-3 text-muted-foreground text-xs">{p.addedBy || "—"}</td>
+                            <td className="px-4 py-3 text-center">
+                              {p.ownerSuspended
+                                ? <UserX className="w-4 h-4 text-red-500 mx-auto" />
+                                : <UserCheck className="w-4 h-4 text-green-500 mx-auto" />
+                              }
+                            </td>
+                          </>
+                        )}
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-2">
                             <Link

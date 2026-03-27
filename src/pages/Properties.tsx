@@ -1,95 +1,42 @@
-import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { X, LayoutGrid, List, ChevronRight, ChevronLeft, Loader2, AlertCircle } from "lucide-react";
+import { useState } from "react";
+import { X, LayoutGrid, List, ChevronRight, ChevronLeft, Loader2 } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import PropertyCard from "@/components/PropertyCard";
 import CustomSelect from "@/components/CustomSelect";
+import { SkeletonCard } from "@/components/property/SkeletonCard";
+import { ErrorState } from "@/components/common/ErrorState";
 import { PRICE_RANGES, SORT_OPTIONS, NEIGHBORHOODS, PROPERTY_TYPES, WHATSAPP_NUMBER } from "@/config";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import {
-  setNeighborhood,
-  setType,
-  setPriceRange,
-  setSort,
-  setPage,
-  clearFilters,
-  selectNeighborhood,
-  selectType,
-  selectPriceRange,
-  selectSort,
-  selectPage,
-  selectHasActiveFilters,
-  selectFilters,
-  type SortOption,
-} from "@/store/slices/filtersSlice";
-import { selectAllProperties } from "@/store/slices/propertiesSlice";
-import { useGetPropertiesQuery } from "@/store/api/propertiesApi";
+import { usePropertyList } from "@/hooks/usePropertyList";
+import { usePropertyFilters } from "@/hooks/usePropertyFilters";
+import { styles } from "@/lib/styles";
+import type { SortOption } from "@/store/slices/filtersSlice";
 
 const priceRanges = PRICE_RANGES;
-
 const sortOptions = SORT_OPTIONS;
 
-// ─── Skeleton Card ────────────────────────────────────────────────────────────
-const SkeletonCard = () => (
-  <div className="bg-white rounded-2xl border border-border overflow-hidden animate-pulse">
-    <div className="h-52 bg-muted" />
-    <div className="p-5 space-y-3">
-      <div className="h-4 bg-muted rounded-lg w-3/4" />
-      <div className="h-3 bg-muted rounded-lg w-1/2" />
-      <div className="flex gap-3 pt-1">
-        <div className="h-3 bg-muted rounded w-16" />
-        <div className="h-3 bg-muted rounded w-16" />
-        <div className="h-3 bg-muted rounded w-16" />
-      </div>
-      <div className="h-px bg-muted" />
-      <div className="flex justify-between items-center pt-1">
-        <div className="h-5 bg-muted rounded w-28" />
-        <div className="h-8 bg-muted rounded-lg w-20" />
-      </div>
-    </div>
-  </div>
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-
 const Properties = () => {
-  const dispatch = useAppDispatch();
-  const [searchParams] = useSearchParams();
   const [view, setView] = useState<"grid" | "list">("grid");
 
-  const neighborhood = useAppSelector(selectNeighborhood);
-  const type = useAppSelector(selectType);
-  const priceRange = useAppSelector(selectPriceRange);
-  const sort = useAppSelector(selectSort);
-  const page = useAppSelector(selectPage);
-  const hasActiveFilters = useAppSelector(selectHasActiveFilters);
-  const filters = useAppSelector(selectFilters);
-  const totalCount = useAppSelector(selectAllProperties).length;
+  const {
+    neighborhood,
+    type,
+    priceRange,
+    sort,
+    page,
+    hasActiveFilters,
+    setNeighborhood,
+    setType,
+    setPriceRange,
+    setSort,
+    setPage,
+    clearFilters,
+  } = usePropertyFilters();
 
-  // Sync URL params → Redux on mount
-  useEffect(() => {
-    const n = searchParams.get("neighborhood");
-    const t = searchParams.get("type");
-    const p = searchParams.get("priceRange");
-    if (n) dispatch(setNeighborhood(n));
-    if (t) dispatch(setType(t));
-    if (p) dispatch(setPriceRange(p));
-  }, []);
-
-  const { data, isFetching, isLoading, isError, refetch } = useGetPropertiesQuery({ ...filters, isActive: true });
-
-  const properties = data?.data ?? [];
-  const total = data?.total ?? 0;
-  const totalPages = data?.totalPages ?? 1;
-
-  // true only on the very first load (no cached data yet)
-  const isInitialLoad = isLoading;
-  // true when re-fetching with existing data (filter/page change)
-  const isRefetching = isFetching && !isLoading;
+  const { properties, total, totalPages, isInitialLoad, isRefetching, isError, refetch } = usePropertyList();
 
   const goToPage = (p: number) => {
-    dispatch(setPage(p));
+    setPage(p);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -106,28 +53,28 @@ const Properties = () => {
               جميع <span className="text-gradient-gold">العقارات</span>
             </h1>
             <p className="text-white/70 text-base md:text-lg">
-              تصفح {totalCount} عقار متاح في المنيا الجديدة
+              تصفح {total} عقار متاح في المنيا الجديدة
             </p>
           </div>
 
           {/* Filters */}
-          <div className="glass-card rounded-3xl p-6 md:p-8 max-w-5xl mx-auto shadow-2xl">
+          <div className={`${styles.glassCard} max-w-5xl mx-auto`}>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">الحي</label>
-                <CustomSelect value={neighborhood} onChange={(v) => dispatch(setNeighborhood(v))} options={NEIGHBORHOODS.map((n) => ({ label: n, value: n }))} placeholder="اختر الحي" />
+                <CustomSelect value={neighborhood} onChange={(v) => setNeighborhood(v)} options={NEIGHBORHOODS.map((n) => ({ label: n, value: n }))} placeholder="اختر الحي" />
               </div>
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">نوع العقار</label>
-                <CustomSelect value={type} onChange={(v) => dispatch(setType(v))} options={PROPERTY_TYPES.map((t) => ({ label: t, value: t }))} placeholder="اختر النوع" />
+                <CustomSelect value={type} onChange={(v) => setType(v)} options={PROPERTY_TYPES.map((t) => ({ label: t, value: t }))} placeholder="اختر النوع" />
               </div>
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">نطاق السعر</label>
-                <CustomSelect value={priceRange} onChange={(v) => dispatch(setPriceRange(v))} options={priceRanges} placeholder="اختر السعر" />
+                <CustomSelect value={priceRange} onChange={(v) => setPriceRange(v)} options={priceRanges} placeholder="اختر السعر" />
               </div>
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block invisible select-none">ترتيب</label>
-                <CustomSelect value={sort} onChange={(v) => dispatch(setSort(v as SortOption))} options={sortOptions} placeholder="ترتيب حسب" />
+                <CustomSelect value={sort} onChange={(v) => setSort(v as SortOption)} options={sortOptions} placeholder="ترتيب حسب" />
               </div>
             </div>
           </div>
@@ -138,21 +85,7 @@ const Properties = () => {
         <div className="container">
 
           {/* ── Error State ── */}
-          {isError && (
-            <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
-              <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
-                <AlertCircle className="w-8 h-8 text-destructive" />
-              </div>
-              <p className="text-foreground font-bold text-xl">حدث خطأ أثناء تحميل العقارات</p>
-              <p className="text-muted-foreground text-sm">تحقق من اتصالك بالإنترنت وحاول مجدداً</p>
-              <button
-                onClick={refetch}
-                className="gradient-gold text-white font-bold px-6 py-3 rounded-xl shadow-lg hover:opacity-90 transition-opacity"
-              >
-                إعادة المحاولة
-              </button>
-            </div>
-          )}
+          {isError && <ErrorState onRetry={refetch} />}
 
           {!isError && (
             <>
@@ -176,7 +109,7 @@ const Properties = () => {
                   )}
                   {hasActiveFilters && !isInitialLoad && (
                     <button
-                      onClick={() => dispatch(clearFilters())}
+                      onClick={clearFilters}
                       className="flex items-center gap-1.5 text-sm text-gold hover:text-gold-dark font-semibold transition-colors border border-gold/30 px-3 py-1.5 rounded-lg hover:bg-gold/5"
                     >
                       <X className="w-4 h-4" />
@@ -189,12 +122,14 @@ const Properties = () => {
                 <div className="flex items-center border-2 border-border rounded-xl overflow-hidden">
                   <button
                     onClick={() => setView("grid")}
+                    aria-label="عرض شبكي"
                     className={`p-3 transition-colors ${view === "grid" ? "bg-gold text-white" : "text-muted-foreground hover:bg-secondary"}`}
                   >
                     <LayoutGrid className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => setView("list")}
+                    aria-label="عرض قائمة"
                     className={`p-3 transition-colors ${view === "list" ? "bg-gold text-white" : "text-muted-foreground hover:bg-secondary"}`}
                   >
                     <List className="w-5 h-5" />
@@ -204,7 +139,7 @@ const Properties = () => {
 
               {/* ── Initial Load: Skeleton Grid ── */}
               {isInitialLoad && (
-                <div className={view === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8" : "flex flex-col gap-5"}>
+                <div className={view === "grid" ? styles.propertyGrid : "flex flex-col gap-5"}>
                   {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
                 </div>
               )}
@@ -218,7 +153,7 @@ const Properties = () => {
                       <p className="text-foreground text-xl font-bold mb-2">لا توجد عقارات مطابقة</p>
                       <p className="text-muted-foreground text-sm mb-6">جرب تغيير معايير البحث</p>
                       <button
-                        onClick={() => dispatch(clearFilters())}
+                        onClick={clearFilters}
                         className="gradient-gold text-white font-bold px-6 py-3 rounded-xl shadow-lg hover:opacity-90 transition-opacity mb-4"
                       >
                         مسح الفلاتر
@@ -249,10 +184,9 @@ const Properties = () => {
               {!isInitialLoad && total > 0 && (
                 <>
                   <div
+                    aria-busy={isInitialLoad}
                     className={`transition-opacity duration-200 ${isRefetching ? "opacity-40 pointer-events-none" : "opacity-100"} ${
-                      view === "grid"
-                        ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
-                        : "flex flex-col gap-5"
+                      view === "grid" ? styles.propertyGrid : "flex flex-col gap-5"
                     }`}
                   >
                     {properties.map((property, i) => (
@@ -262,51 +196,57 @@ const Properties = () => {
 
                   {/* Pagination */}
                   {totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-1.5 md:gap-2 mt-12 flex-wrap">
-                      <button
-                        onClick={() => goToPage(page - 1)}
-                        disabled={page === 1 || isFetching}
-                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 border-border font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:border-gold hover:text-gold"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                        السابق
-                      </button>
+                    <nav aria-label="التنقل بين الصفحات">
+                      <div className="flex items-center justify-center gap-1.5 md:gap-2 mt-12 flex-wrap">
+                        <button
+                          onClick={() => goToPage(page - 1)}
+                          disabled={page === 1 || isRefetching}
+                          aria-label="الصفحة السابقة"
+                          className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 border-border font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:border-gold hover:text-gold"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                          السابق
+                        </button>
 
-                      <div className="flex items-center gap-1.5">
-                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
-                          const isActive = p === page;
-                          const show = p === 1 || p === totalPages || Math.abs(p - page) <= 1;
-                          if (!show) {
-                            if (p === 2 && page > 3) return <span key={p} className="px-1 text-muted-foreground select-none">...</span>;
-                            if (p === totalPages - 1 && page < totalPages - 2) return <span key={p} className="px-1 text-muted-foreground select-none">...</span>;
-                            return null;
-                          }
-                          return (
-                            <button
-                              key={p}
-                              onClick={() => goToPage(p)}
-                              disabled={isFetching}
-                              className={`w-10 h-10 rounded-xl font-bold text-sm transition-all disabled:cursor-not-allowed ${
-                                isActive
-                                  ? "gradient-gold text-white shadow-lg scale-105"
-                                  : "border-2 border-border hover:border-gold hover:text-gold"
-                              }`}
-                            >
-                              {p}
-                            </button>
-                          );
-                        })}
+                        <div className="flex items-center gap-1.5">
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
+                            const isActive = p === page;
+                            const show = p === 1 || p === totalPages || Math.abs(p - page) <= 1;
+                            if (!show) {
+                              if (p === 2 && page > 3) return <span key={p} className="px-1 text-muted-foreground select-none">...</span>;
+                              if (p === totalPages - 1 && page < totalPages - 2) return <span key={p} className="px-1 text-muted-foreground select-none">...</span>;
+                              return null;
+                            }
+                            return (
+                              <button
+                                key={p}
+                                onClick={() => goToPage(p)}
+                                disabled={isRefetching}
+                                aria-label={`الصفحة ${p}`}
+                                aria-current={isActive ? "page" : undefined}
+                                className={`w-10 h-10 rounded-xl font-bold text-sm transition-all disabled:cursor-not-allowed ${
+                                  isActive
+                                    ? "gradient-gold text-white shadow-lg scale-105"
+                                    : "border-2 border-border hover:border-gold hover:text-gold"
+                                }`}
+                              >
+                                {p}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <button
+                          onClick={() => goToPage(page + 1)}
+                          disabled={page === totalPages || isRefetching}
+                          aria-label="الصفحة التالية"
+                          className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 border-border font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:border-gold hover:text-gold"
+                        >
+                          التالي
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
                       </div>
-
-                      <button
-                        onClick={() => goToPage(page + 1)}
-                        disabled={page === totalPages || isFetching}
-                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 border-border font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:border-gold hover:text-gold"
-                      >
-                        التالي
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-                    </div>
+                    </nav>
                   )}
                 </>
               )}

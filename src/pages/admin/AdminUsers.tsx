@@ -7,7 +7,7 @@ import {
   useDeleteUserMutation,
 } from "@/store/api/usersApi";
 import type { AdminUser, UserRole } from "@/store/slices/usersSlice";
-import { Plus, Pencil, Trash2, Shield, ShieldCheck, Loader2, X, AlertCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Shield, ShieldCheck, Loader2, X, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 
 const ROLE_LABELS: Record<UserRole, string> = {
   super_admin: "مدير كامل",
@@ -24,7 +24,7 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   property_admin: ["إدارة العقارات", "إضافة وتعديل وحذف العقارات"],
 };
 
-const emptyForm = { name: "", username: "", password: "", role: "property_admin" as UserRole };
+const emptyForm = { name: "", username: "", password: "", role: "property_admin" as UserRole, expiresAt: "", phone: "" };
 
 const inputClass = "w-full bg-secondary text-foreground rounded-xl px-4 h-[50px] border-2 border-border focus:ring-2 focus:ring-gold/30 focus:border-gold outline-none transition-all text-sm";
 const labelClass = "text-sm font-bold text-foreground mb-1.5 block";
@@ -57,7 +57,7 @@ const AdminUsers = () => {
   };
 
   const openEdit = (user: AdminUser) => {
-    setForm({ name: user.name, username: user.username, password: "", role: user.role });
+    setForm({ name: user.name, username: user.username, password: "", role: user.role, expiresAt: user.expiresAt ? user.expiresAt.split("T")[0] : "", phone: user.phone ?? "" });
     setFormError("");
     setModal({ open: true, editing: user });
   };
@@ -73,14 +73,19 @@ const AdminUsers = () => {
       setFormError("كلمة المرور مطلوبة");
       return;
     }
+    const phonePattern = /^(\+?20)?01[0125]\d{8}$/;
+    if (!modal.editing && form.phone && !phonePattern.test(form.phone)) {
+      setFormError("رقم الهاتف غير صحيح، يجب أن يكون رقم مصري صحيح");
+      return;
+    }
     setFormError("");
     try {
       if (modal.editing) {
-        const payload: Record<string, unknown> = { name: form.name, username: form.username, role: form.role };
+        const payload: Record<string, unknown> = { name: form.name, username: form.username, role: form.role, phone: form.phone, expiresAt: form.expiresAt || null };
         if (form.password.trim()) payload.password = form.password;
         await updateUser({ id: modal.editing.id, data: payload }).unwrap();
       } else {
-        await createUser({ name: form.name, username: form.username, password: form.password, role: form.role }).unwrap();
+        await createUser({ name: form.name, username: form.username, password: form.password, role: form.role, phone: form.phone, expiresAt: form.expiresAt || null }).unwrap();
       }
       closeModal();
     } catch (err: unknown) {
@@ -163,6 +168,8 @@ const AdminUsers = () => {
                   <tr className="bg-secondary border-b border-border text-muted-foreground text-xs font-bold uppercase tracking-wider">
                     <th className="px-4 py-3 text-right">المستخدم</th>
                     <th className="px-4 py-3 text-right">الصلاحية</th>
+                    <th className="px-4 py-3 text-center">الحالة</th>
+                    <th className="px-4 py-3 text-right hidden md:table-cell">صالح حتى</th>
                     <th className="px-4 py-3 text-right hidden md:table-cell">تاريخ الإضافة</th>
                     <th className="px-4 py-3 text-center">إجراءات</th>
                   </tr>
@@ -171,7 +178,7 @@ const AdminUsers = () => {
                   {isLoading
                     ? Array.from({ length: 3 }).map((_, i) => (
                         <tr key={i} className="border-b border-border animate-pulse">
-                          {[1,2,3,4].map((j) => (
+                          {[1,2,3,4,5,6].map((j) => (
                             <td key={j} className="px-4 py-4"><div className="h-4 bg-muted rounded w-3/4" /></td>
                           ))}
                         </tr>
@@ -189,6 +196,23 @@ const AdminUsers = () => {
                               {user.role === "super_admin" ? <ShieldCheck className="w-3 h-3" /> : <Shield className="w-3 h-3" />}
                               {ROLE_LABELS[user.role]}
                             </span>
+                          </td>
+                          <td className="px-4 py-4 text-center">
+                            {user.active
+                              ? <CheckCircle2 className="w-4 h-4 text-green-500 mx-auto" />
+                              : <XCircle className="w-4 h-4 text-destructive mx-auto" />
+                            }
+                          </td>
+                          <td className="px-4 py-4 hidden md:table-cell">
+                            {user.expiresAt ? (() => {
+                              const expired = new Date(user.expiresAt) < new Date();
+                              return (
+                                <span className={`text-xs font-semibold ${expired ? "text-destructive" : "text-muted-foreground"}`}>
+                                  {new Date(user.expiresAt).toLocaleDateString("ar-EG")}
+                                  {expired && <span className="mr-1">(منتهية)</span>}
+                                </span>
+                              );
+                            })() : <span className="text-muted-foreground text-xs">—</span>}
                           </td>
                           <td className="px-4 py-4 text-muted-foreground text-xs hidden md:table-cell">{user.createdAt}</td>
                           <td className="px-4 py-4">
@@ -234,7 +258,8 @@ const AdminUsers = () => {
               </div>
               <div>
                 <label className={labelClass}>اسم المستخدم <span className="text-destructive">*</span></label>
-                <input type="text" value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))}
+                <input type="text" value={form.username}
+                  onChange={(e) => { if (/[\u0600-\u06FF]/.test(e.target.value)) return; setForm((p) => ({ ...p, username: e.target.value })); }}
                   placeholder="username" className={inputClass} dir="ltr" />
               </div>
               <div>
@@ -245,7 +270,8 @@ const AdminUsers = () => {
                     : <span className="text-destructive">*</span>
                   }
                 </label>
-                <input type="password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+                <input type="password" value={form.password}
+                  onChange={(e) => { if (/[\u0600-\u06FF]/.test(e.target.value)) return; setForm((p) => ({ ...p, password: e.target.value })); }}
                   placeholder={modal.editing ? "••••••••" : "أدخل كلمة المرور"} className={inputClass} dir="ltr" />
               </div>
               <div>
@@ -267,6 +293,29 @@ const AdminUsers = () => {
                   {ROLE_PERMISSIONS[form.role].join(" • ")}
                 </p>
               </div>
+              <div>
+                <label className={labelClass}>رقم الهاتف <span className="text-destructive">*</span></label>
+                <input
+                  type="tel"
+                  value={form.phone}
+                  onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+                  placeholder="01XXXXXXXXX"
+                  className={inputClass}
+                  dir="ltr"
+                />
+              </div>
+              {form.role === "property_admin" && (
+                <div>
+                  <label className={labelClass}>تاريخ انتهاء الصلاحية</label>
+                  <input
+                    type="date"
+                    value={form.expiresAt}
+                    onChange={(e) => setForm((p) => ({ ...p, expiresAt: e.target.value }))}
+                    className={inputClass}
+                    dir="ltr"
+                  />
+                </div>
+              )}
               {formError && (
                 <p className="text-destructive text-sm font-semibold bg-destructive/5 border border-destructive/20 px-4 py-2.5 rounded-xl">
                   {formError}

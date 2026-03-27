@@ -9,16 +9,21 @@ const SiteFooter = () => {
       <div className="absolute top-0 right-0 w-64 h-64 bg-gold/10 rounded-full blur-3xl"></div>
       <div className="absolute bottom-0 left-0 w-80 h-80 bg-gold/5 rounded-full blur-3xl"></div>
       
-      <div className="container py-16 md:py-20 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 items-start">
+      <div className="container py-12 md:py-20 relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 items-start">
           {/* Brand */}
           <div>
-            <div className="flex items-center gap-3 mb-5">
+            <div className="flex items-center gap-3 mb-4 md:mb-5">
               <div className="p-1.5 rounded-xl border-2 border-gold/40 bg-white/10 shadow-md inline-block">
-                <img src={logo} alt="logo" className="h-14 w-auto object-contain" />
+                <img
+                  src={logo}
+                  alt="logo"
+                  className="h-12 md:h-14 w-auto object-contain"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                />
               </div>
             </div>
-            <p className="text-primary-foreground/80 text-base leading-relaxed">
+            <p className="text-primary-foreground/80 text-sm md:text-base leading-relaxed">
               أكبر منصة عقارية متخصصة في المنيا الجديدة. نساعدك في إيجاد عقارك المثالي بأفضل الأسعار.
             </p>
           </div>

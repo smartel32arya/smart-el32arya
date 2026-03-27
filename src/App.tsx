@@ -15,6 +15,7 @@ import AddProperty from "./pages/admin/AddProperty.tsx";
 import AdminProperties from "./pages/admin/AdminProperties.tsx";
 import EditProperty from "./pages/admin/EditProperty.tsx";
 import AdminUsers from "./pages/admin/AdminUsers.tsx";
+import Profile from "./pages/admin/Profile.tsx";
 import AddPropertyContact from "./pages/AddPropertyContact.tsx";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
           <Route path="/admin/add-property" element={<AddProperty />} />
           <Route path="/admin/edit-property/:id" element={<EditProperty />} />
           <Route path="/admin/users" element={<SuperAdminRoute><AdminUsers /></SuperAdminRoute>} />
+          <Route path="/admin/profile" element={<Profile />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

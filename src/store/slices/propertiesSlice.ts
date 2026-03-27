@@ -1,5 +1,5 @@
 import { createSlice, createSelector, type PayloadAction } from "@reduxjs/toolkit";
-import { properties as allProperties, type Property } from "@/data/properties";
+import type { Property } from "@/data/properties";
 import type { RootState } from "@/store";
 
 interface PropertiesState {
@@ -8,7 +8,7 @@ interface PropertiesState {
 }
 
 const initialState: PropertiesState = {
-  items: allProperties,
+  items: [],
   selectedId: null,
 };
 

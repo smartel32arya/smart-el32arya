@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AdminLayout } from "./Dashboard";
-import { useGetPropertyByIdQuery, useUpdatePropertyMutation } from "@/store/api/propertiesApi";
+import { useGetAdminPropertyByIdQuery } from "@/store/api/propertiesApi";
+import { useAdminActions } from "@/hooks/useAdminActions";
 import { NEIGHBORHOODS, PROPERTY_TYPES, AMENITY_SUGGESTIONS } from "@/config";
 import CustomSelect from "@/components/CustomSelect";
 import { Star, Save, ArrowRight, Loader2, AlertCircle, X, Plus, Upload, Video } from "lucide-react";
@@ -17,8 +18,8 @@ const Card = ({ children }: { children: React.ReactNode }) => (
 const EditProperty = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: property, isLoading, isError } = useGetPropertyByIdQuery(id ?? "");
-  const [updateProperty, { isLoading: isSaving }] = useUpdatePropertyMutation();
+  const { data: property, isLoading, isError } = useGetAdminPropertyByIdQuery(id ?? "");
+  const { buildUpdateFormData, updateProperty, isUpdating: isSaving } = useAdminActions();
   const [amenityInput, setAmenityInput] = useState("");
 
   const [form, setForm] = useState({
@@ -72,30 +73,47 @@ const EditProperty = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (Number(form.price) < 55000) return;
-    const fd = new FormData();
-    fd.append("title", form.title);
-    fd.append("description", form.description);
-    fd.append("price", form.price);
-    fd.append("neighborhood", form.neighborhood);
-    fd.append("type", form.type);
-    fd.append("area", form.area);
-    fd.append("bedrooms", form.bedrooms);
-    fd.append("bathrooms", form.bathrooms);
-    fd.append("amenities", JSON.stringify(form.amenities));
-    fd.append("featured", String(form.featured));
-    fd.append("active", String(form.active));
-    fd.append("showPrice", String(form.showPrice));
-    fd.append("existingImages", JSON.stringify(existingImages));
-    newImages.forEach((img) => fd.append("images", img));
-    if (newVideo) fd.append("video", newVideo);
-    else if (existingVideo) fd.append("videoUrl", existingVideo);
-
-    await updateProperty({ id: id!, data: fd });
-    toast.success("تم حفظ التعديلات بنجاح", {
-      description: `تم تحديث بيانات "${form.title}"`,
-      duration: 4000,
-    });
-    navigate("/admin/properties");
+    if (Number(form.bedrooms) > 10) {
+      toast.error("عدد غرف النوم لا يمكن أن يتجاوز ١٠ غرف");
+      return;
+    }
+    if (Number(form.bathrooms) > 6) {
+      toast.error("عدد الحمامات لا يمكن أن يتجاوز ٦ حمامات");
+      return;
+    }
+    const fd = buildUpdateFormData(
+      {
+        title: form.title,
+        description: form.description,
+        price: form.price,
+        neighborhood: form.neighborhood,
+        type: form.type,
+        area: form.area,
+        bedrooms: form.bedrooms,
+        bathrooms: form.bathrooms,
+        amenities: form.amenities,
+        featured: form.featured,
+        active: form.active,
+        showPrice: form.showPrice,
+      },
+      existingImages,
+      newImages,
+      existingVideo,
+      newVideo
+    );
+    try {
+      await updateProperty(id!, fd);
+      toast.success("تم حفظ التعديلات بنجاح", {
+        description: `تم تحديث بيانات "${form.title}"`,
+        duration: 4000,
+      });
+      navigate("/admin/properties");
+    } catch (err: any) {
+      toast.error("فشل حفظ التعديلات", {
+        description: err?.data?.message || "حدث خطأ، حاول مجدداً",
+        duration: 5000,
+      });
+    }
   };
 
   const neighborhoods = NEIGHBORHOODS.filter((n) => n !== "الكل");

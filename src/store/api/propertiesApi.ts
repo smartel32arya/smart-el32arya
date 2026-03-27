@@ -1,9 +1,12 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { properties as localData } from "@/data/properties";
 import type { Property } from "@/data/properties";
+
 export const PAGE_SIZE = 10;
 export const FEATURED_MAX = 6;
 const BASE_URL = import.meta.env.VITE_API_URL ?? "";
+
+// ─── _id → id mapping helper ─────────────────────────────────────────────────
+const mapProperty = (p: any): Property => ({ ...p, id: p._id ?? p.id });
 
 // ─── Response shape ───────────────────────────────────────────────────────────
 export interface PropertiesResponse {
@@ -20,38 +23,9 @@ export interface PropertyFilters {
   priceRange: string;
   sort: "newest" | "price-asc" | "price-desc" | "area-desc";
   page: number;
+  pageSize?: number;
   isActive?: boolean;
 }
-
-// ─── Local mock ───────────────────────────────────────────────────────────────
-// Mirrors the exact response shape the backend will return.
-// Remove once VITE_API_URL is set.
-function mockFetch(filters: PropertyFilters): PropertiesResponse {
-  let result = [...localData];
-  if (filters.isActive === true) result = result.filter((p) => p.active !== false);
-  else if (filters.isActive === false) result = result.filter((p) => p.active === false);
-
-  if (filters.neighborhood !== "الكل")
-    result = result.filter((p) => p.neighborhood === filters.neighborhood);
-  if (filters.type !== "الكل")
-    result = result.filter((p) => p.type === filters.type);
-  if (filters.priceRange !== "all") {
-    const [min, max] = filters.priceRange.split("-").map(Number);
-    result = result.filter((p) => p.price >= min && p.price <= max);
-  }
-  if (filters.sort === "price-asc") result.sort((a, b) => a.price - b.price);
-  else if (filters.sort === "price-desc") result.sort((a, b) => b.price - a.price);
-  else if (filters.sort === "area-desc") result.sort((a, b) => b.area - a.area);
-
-  const total = result.length;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const page = Math.min(filters.page, totalPages);
-  const data = result.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  return { data, total, page, pageSize: PAGE_SIZE, totalPages };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const propertiesApi = createApi({
   reducerPath: "propertiesApi",
@@ -66,126 +40,99 @@ export const propertiesApi = createApi({
   tagTypes: ["Property"],
   endpoints: (builder) => ({
 
-    /**
-     * GET /properties
-     * Query params: neighborhood, type, priceRange, sort, page, pageSize
-     *
-     * To switch to real backend: set VITE_API_URL in .env and remove the mock block.
-     */
+    // GET /properties
     getProperties: builder.query<PropertiesResponse, PropertyFilters>({
-      queryFn: async (filters, _api, _extra, baseQuery) => {
-        if (!BASE_URL) {
-          await new Promise((r) => setTimeout(r, 800));
-          return { data: mockFetch(filters) };
-        }
-
+      query: (filters) => {
         const params = new URLSearchParams({
           sort: filters.sort,
           page: String(filters.page),
-          pageSize: String(PAGE_SIZE),
+          pageSize: String(filters.pageSize ?? PAGE_SIZE),
+          isActive: "true",
         });
-        if (filters.isActive !== undefined) params.set("isActive", String(filters.isActive));
         if (filters.neighborhood !== "الكل") params.set("neighborhood", filters.neighborhood);
         if (filters.type !== "الكل") params.set("type", filters.type);
         if (filters.priceRange !== "all") params.set("priceRange", filters.priceRange);
-
-        const result = await baseQuery(`/properties?${params}`);
-        if (result.error) return { error: result.error };
-        return { data: result.data as PropertiesResponse };
+        return `/properties?${params}`;
       },
+      transformResponse: (raw: PropertiesResponse) => ({
+        ...raw,
+        data: raw.data.map(mapProperty),
+      }),
       providesTags: ["Property"],
     }),
 
-    /**
-     * GET /properties/featured?limit=6
-     * Returns featured properties (max FEATURED_MAX).
-     */
+    // GET /properties/featured?limit=6
     getFeaturedProperties: builder.query<Property[], void>({
-      queryFn: async (_arg, _api, _extra, baseQuery) => {
-        if (!BASE_URL) {
-          await new Promise((r) => setTimeout(r, 600));
-          const data = localData.filter((p) => p.featured).slice(0, FEATURED_MAX);
-          return { data };
-        }
-        const result = await baseQuery(`/properties/featured?limit=${FEATURED_MAX}`);
-        if (result.error) return { error: result.error };
-        return { data: result.data as Property[] };
-      },
+      query: () => `/properties/featured?limit=${FEATURED_MAX}`,
+      transformResponse: (raw: Property[]) => raw.map(mapProperty),
       providesTags: ["Property"],
     }),
 
-    /**
-     * GET /properties/:id
-     */
-    getPropertyById: builder.query<Property, string>({
-      queryFn: async (id, _api, _extra, baseQuery) => {
-        if (!BASE_URL) {
-          await new Promise((r) => setTimeout(r, 800));
-          const found = localData.find((p) => p.id === id);
-          if (found) return { data: found };
-          return { error: { status: "CUSTOM_ERROR" as const, error: "Not found" } };
-        }
-        const result = await baseQuery(`/properties/${id}`);
-        if (result.error) return { error: result.error };
-        return { data: result.data as Property };
+    // GET /admin/properties
+    getAdminProperties: builder.query<PropertiesResponse, PropertyFilters>({
+      query: (filters) => {
+        const params = new URLSearchParams({
+          sort: filters.sort,
+          page: String(filters.page),
+          pageSize: String(filters.pageSize ?? PAGE_SIZE),
+        });
+        if (filters.neighborhood !== "الكل") params.set("neighborhood", filters.neighborhood);
+        if (filters.type !== "الكل") params.set("type", filters.type);
+        if (filters.priceRange !== "all") params.set("priceRange", filters.priceRange);
+        if (filters.isActive !== undefined) params.set("isActive", String(filters.isActive));
+        return `/admin/properties?${params}`;
       },
+      transformResponse: (raw: PropertiesResponse) => ({
+        ...raw,
+        data: raw.data.map(mapProperty),
+      }),
+      providesTags: ["Property"],
+    }),
+
+    // GET /admin/properties/:id
+    getAdminPropertyById: builder.query<Property, string>({
+      query: (id) => `/admin/properties/${id}`,
+      transformResponse: (raw: any) => mapProperty(raw),
       providesTags: (_r, _e, id) => [{ type: "Property", id }],
     }),
 
-    /**
-     * DELETE /admin/properties/:id
-     */
+    // GET /properties/:id
+    getPropertyById: builder.query<Property, string>({
+      query: (id) => `/properties/${id}`,
+      transformResponse: (raw: any) => mapProperty(raw),
+      providesTags: (_r, _e, id) => [{ type: "Property", id }],
+    }),
+
+    // DELETE /admin/properties/:id
     deleteProperty: builder.mutation<void, string>({
-      queryFn: async (id, _api, _extra, baseQuery) => {
-        if (!BASE_URL) {
-          await new Promise((r) => setTimeout(r, 400));
-          return { data: undefined };
-        }
-        const result = await baseQuery({ url: `/admin/properties/${id}`, method: "DELETE" });
-        if (result.error) return { error: result.error };
-        return { data: undefined };
-      },
+      query: (id) => ({ url: `/admin/properties/${id}`, method: "DELETE" }),
       invalidatesTags: ["Property"],
     }),
 
-    /**
-     * PUT /admin/properties/:id  (multipart/form-data — supports image + video upload)
-     */
-    updateProperty: builder.mutation<void, { id: string; data: FormData }>({
-      queryFn: async ({ id, data }, _api, _extra, baseQuery) => {
-        if (!BASE_URL) {
-          await new Promise((r) => setTimeout(r, 500));
-          return { data: undefined };
-        }
-        const result = await baseQuery({ url: `/admin/properties/${id}`, method: "PUT", body: data });
-        if (result.error) return { error: result.error };
-        return { data: undefined };
-      },
-      invalidatesTags: (_r, _e, { id }) => [{ type: "Property", id }],
+    // PUT /admin/properties/:id
+    updateProperty: builder.mutation<Property, { id: string; data: FormData }>({
+      query: ({ id, data }) => ({ url: `/admin/properties/${id}`, method: "PUT", body: data }),
+      transformResponse: (raw: any) => mapProperty(raw),
+      invalidatesTags: (_r, _e, { id }) => ["Property", { type: "Property", id }],
     }),
 
-    /**
-     * POST /admin/properties  (multipart/form-data with images)
-     */
+    // POST /admin/properties
     createProperty: builder.mutation<Property, FormData>({
-      queryFn: async (formData, _api, _extra, baseQuery) => {
-        if (!BASE_URL) {
-          await new Promise((r) => setTimeout(r, 600));
-          // mock: return a fake property so UI can react
-          return { data: { id: Date.now().toString() } as unknown as Property };
-        }
-        const result = await baseQuery({
-          url: "/admin/properties",
-          method: "POST",
-          body: formData,
-        });
-        if (result.error) return { error: result.error };
-        return { data: result.data as Property };
-      },
+      query: (formData) => ({ url: "/admin/properties", method: "POST", body: formData }),
+      transformResponse: (raw: any) => mapProperty(raw),
       invalidatesTags: ["Property"],
     }),
 
   }),
 });
 
-export const { useGetPropertiesQuery, useGetPropertyByIdQuery, useGetFeaturedPropertiesQuery, useDeletePropertyMutation, useUpdatePropertyMutation, useCreatePropertyMutation } = propertiesApi;
+export const {
+  useGetPropertiesQuery,
+  useGetPropertyByIdQuery,
+  useGetFeaturedPropertiesQuery,
+  useGetAdminPropertiesQuery,
+  useGetAdminPropertyByIdQuery,
+  useDeletePropertyMutation,
+  useUpdatePropertyMutation,
+  useCreatePropertyMutation,
+} = propertiesApi;

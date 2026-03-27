@@ -2,12 +2,16 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Building2, Lock, User, Eye, EyeOff } from "lucide-react";
 import { SITE_NAME } from "@/config";
+import { useAppDispatch } from "@/store/hooks";
+import { propertiesApi } from "@/store/api/propertiesApi";
+import { usersApi } from "@/store/api/usersApi";
 
 const inputClass =
   "w-full bg-secondary text-foreground rounded-xl px-5 h-[54px] border-2 border-border focus:ring-2 focus:ring-gold/30 focus:border-gold outline-none transition-all text-base";
 
 const Login = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -31,6 +35,9 @@ const Login = () => {
       }
       localStorage.setItem("adminToken", data.token);
       localStorage.setItem("adminUser", JSON.stringify(data.user));
+      // Reset API cache so all queries refetch with the new token
+      dispatch(propertiesApi.util.resetApiState());
+      dispatch(usersApi.util.resetApiState());
       navigate("/admin");
     } catch {
       setError("تعذّر الاتصال بالخادم، حاول مجدداً");
@@ -39,7 +46,10 @@ const Login = () => {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((p) => ({ ...p, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    // Block Arabic characters in username and password
+    if ((name === "username" || name === "password") && /[\u0600-\u06FF]/.test(value)) return;
+    setFormData((p) => ({ ...p, [name]: value }));
     setError("");
   };
 

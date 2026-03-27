@@ -4,7 +4,7 @@ import { AdminLayout } from "./Dashboard";
 import { Upload, X, Plus, Star, Loader2, Video } from "lucide-react";
 import CustomSelect from "@/components/CustomSelect";
 import { NEIGHBORHOODS, PROPERTY_TYPES, AMENITY_SUGGESTIONS } from "@/config";
-import { useCreatePropertyMutation } from "@/store/api/propertiesApi";
+import { useAdminActions } from "@/hooks/useAdminActions";
 import { toast } from "sonner";
 
 interface PropertyFormData {
@@ -38,7 +38,7 @@ const Card = ({ children, className = "" }: { children: React.ReactNode; classNa
 
 const AddProperty = () => {
   const navigate = useNavigate();
-  const [createProperty, { isLoading: isSaving }] = useCreatePropertyMutation();
+  const { buildCreateFormData, createProperty, isCreating: isSaving } = useAdminActions();
   const [formData, setFormData] = useState<PropertyFormData>({
     title: "", description: "", price: "", neighborhood: "",
     type: "", area: "", bedrooms: "", bathrooms: "",
@@ -99,32 +99,44 @@ const AddProperty = () => {
       setError("السعر يجب أن يكون أكبر من ٥٥,٠٠٠ ج.م");
       return;
     }
-    const fd = new FormData();
-    fd.append("title", formData.title);
-    fd.append("description", formData.description);
-    fd.append("price", formData.price);
-    fd.append("neighborhood", formData.neighborhood);
-    fd.append("type", formData.type);
-    fd.append("area", formData.area);
-    fd.append("bedrooms", formData.bedrooms);
-    fd.append("bathrooms", formData.bathrooms);
-    fd.append("location", "المنيا الجديدة");
-    fd.append("featured", String(formData.featured));
-    fd.append("active", String(formData.active));
-    fd.append("showPrice", String(formData.showPrice));
-    fd.append("amenities", JSON.stringify(formData.amenities));
-    formData.images.forEach((img) => fd.append("images", img));
-    if (formData.videos[0]) fd.append("video", formData.videos[0]);
-
+    if (Number(formData.bedrooms) > 10) {
+      setError("عدد غرف النوم لا يمكن أن يتجاوز ١٠ غرف");
+      return;
+    }
+    if (Number(formData.bathrooms) > 6) {
+      setError("عدد الحمامات لا يمكن أن يتجاوز ٦ حمامات");
+      return;
+    }
+    const fd = buildCreateFormData(
+      {
+        title: formData.title,
+        description: formData.description,
+        price: formData.price,
+        neighborhood: formData.neighborhood,
+        type: formData.type,
+        area: formData.area,
+        bedrooms: formData.bedrooms,
+        bathrooms: formData.bathrooms,
+        amenities: formData.amenities,
+        featured: formData.featured,
+        active: formData.active,
+        showPrice: formData.showPrice,
+      },
+      formData.images,
+      formData.videos[0] ?? null
+    );
     try {
-      await createProperty(fd).unwrap();
+      await createProperty(fd);
       toast.success("تم نشر العقار بنجاح", {
         description: `"${formData.title}" أصبح متاحاً الآن للزوار`,
         duration: 4000,
       });
       navigate("/admin/properties");
-    } catch {
-      setError("حدث خطأ أثناء إضافة العقار، يرجى المحاولة مرة أخرى");
+    } catch (err: any) {
+      toast.error("فشل نشر العقار", {
+        description: err?.data?.message || "حدث خطأ، حاول مجدداً",
+        duration: 5000,
+      });
     }
   };
 

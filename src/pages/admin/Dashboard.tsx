@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Building2, Home, Plus, Menu, X, Globe, List, Users,
-  TrendingUp, Eye, EyeOff, Star, ShieldCheck,
+  TrendingUp, Eye, EyeOff, Star, ShieldCheck, UserCircle,
 } from "lucide-react";
 import { SITE_NAME } from "@/config";
-import { useGetPropertiesQuery, useGetFeaturedPropertiesQuery } from "@/store/api/propertiesApi";
+import { useGetAdminPropertiesQuery, useGetPropertiesQuery, useGetFeaturedPropertiesQuery } from "@/store/api/propertiesApi";
 import { useGetUsersQuery } from "@/store/api/usersApi";
 
 interface AdminLayoutProps {
@@ -23,6 +23,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 
   const navItems = [
     { label: "الرئيسية", href: "/admin", icon: Home },
+    { label: "الملف الشخصي", href: "/admin/profile", icon: UserCircle },
     { label: "إدارة العقارات", href: "/admin/properties", icon: List },
     { label: "إضافة عقار جديد", href: "/admin/add-property", icon: Plus },
     ...(isSuperAdmin ? [{ label: "إدارة المستخدمين", href: "/admin/users", icon: Users }] : []),
@@ -114,35 +115,33 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 };
 
 const Dashboard = () => {
-  const { data: propertiesData } = useGetPropertiesQuery({ neighborhood: "الكل", type: "الكل", priceRange: "all", sort: "newest", page: 1 });
-  const { data: featured = [] } = useGetFeaturedPropertiesQuery();
-  const { data: allUsers = [] } = useGetUsersQuery();
-
-  const allProperties = propertiesData?.data ?? [];
-  const propStats = {
-    total: propertiesData?.total ?? 0,
-    active: allProperties.filter((p) => p.active).length,
-    inactive: allProperties.filter((p) => !p.active).length,
-  };
-
   const currentUser = (() => {
     try { return JSON.parse(localStorage.getItem("adminUser") ?? "{}"); } catch { return {}; }
   })();
   const isSuperAdmin = currentUser?.role === "super_admin";
 
+  const { data: propertiesData } = useGetAdminPropertiesQuery({ neighborhood: "الكل", type: "الكل", priceRange: "all", sort: "newest", page: 1, pageSize: 5 });
+  const { data: activeData } = useGetPropertiesQuery({ neighborhood: "الكل", type: "الكل", priceRange: "all", sort: "newest", page: 1, pageSize: 1 });
+  const { data: featured = [] } = useGetFeaturedPropertiesQuery(undefined, { skip: !isSuperAdmin });
+  const { data: allUsers = [] } = useGetUsersQuery();
+
+  const propStats = {
+    total: propertiesData?.total ?? 0,
+    active: activeData?.total ?? 0,
+  };
+
   const userStats = {
     total: allUsers.length,
   };
 
-  // Last 5 properties
-  const recentProperties = [...allProperties].slice(-5).reverse();
+  // Last 5 properties (already sorted newest-first from the API)
+  const recentProperties = propertiesData?.data ?? [];
 
   const statCards = [
     { label: "إجمالي العقارات", value: propStats.total, icon: Building2, color: "text-gold", bg: "bg-gold/10" },
     { label: "عقارات نشطة", value: propStats.active, icon: Eye, color: "text-green-600", bg: "bg-green-50" },
-    { label: "عقارات مخفية", value: propStats.inactive, icon: EyeOff, color: "text-orange-500", bg: "bg-orange-50" },
-    { label: "عقارات مميزة", value: featured.length, icon: Star, color: "text-yellow-500", bg: "bg-yellow-50" },
     ...(isSuperAdmin ? [
+      { label: "عقارات مميزة", value: featured.length, icon: Star, color: "text-yellow-500", bg: "bg-yellow-50" },
       { label: "إجمالي المستخدمين", value: userStats.total, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
     ] : []),
   ];

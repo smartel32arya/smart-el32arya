@@ -64,6 +64,9 @@ const PropertyDetails = () => {
 
   const { data: property, isLoading, isError, refetch } = useGetPropertyByIdQuery(id ?? "");
 
+  // Use property's own contact number if available, fallback to site default
+  const contactNumber = property?.contactPhone || WHATSAPP_NUMBER;
+
   useEffect(() => {
     if (!lightbox || !property) return;
     const handler = (e: KeyboardEvent) => {
@@ -92,7 +95,7 @@ const PropertyDetails = () => {
       `التفاصيل: ${specs}`,
       msgText ? `الرسالة: ${msgText}` : "",
     ].filter(Boolean).join("\n");
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+    window.open(`https://wa.me/${contactNumber}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -352,7 +355,7 @@ const PropertyDetails = () => {
                       <p className="text-amber-800 font-black text-lg mb-1">لمعرفه السعر عند الجدية - تواصل معنا</p>
                       <p className="text-amber-700 text-sm mb-4">هذا العقار بسعر خاص — تواصل معنا الآن واحصل على السعر فوراً</p>
                       <a
-                        href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`مرحباً، أريد الاستفسار عن سعر العقار:\n${property.title}\nالتفاصيل: ${[property.type, property.area ? `${property.area} م²` : "", property.bedrooms > 0 ? `${property.bedrooms} غرف` : "", property.bathrooms ? `${property.bathrooms} حمام` : "", `${property.neighborhood} - ${property.location}`].filter(Boolean).join(" | ")}`)}`}
+                        href={`https://wa.me/${contactNumber}?text=${encodeURIComponent(`مرحباً، أريد الاستفسار عن سعر العقار:\n${property.title}\nالتفاصيل: ${[property.type, property.area ? `${property.area} م²` : "", property.bedrooms > 0 ? `${property.bedrooms} غرف` : "", property.bathrooms ? `${property.bathrooms} حمام` : "", `${property.neighborhood} - ${property.location}`].filter(Boolean).join(" | ")}`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe5d] text-white font-black px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all"
@@ -476,7 +479,7 @@ const PropertyDetails = () => {
                   {/* Direct WhatsApp */}
                   <div className="mt-4 pt-4 border-t border-border">
                     <a
-                      href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`مرحباً، أريد الاستفسار عن: ${property.title}\nالتفاصيل: ${[property.type, property.area ? `${property.area} م²` : "", property.bedrooms > 0 ? `${property.bedrooms} غرف` : "", property.bathrooms ? `${property.bathrooms} حمام` : "", property.showPrice !== false ? property.priceFormatted : "أريد معرفة السعر", `${property.neighborhood} - ${property.location}`].filter(Boolean).join(" | ")}`)}`}
+                      href={`https://wa.me/${contactNumber}?text=${encodeURIComponent(`مرحباً، أريد الاستفسار عن: ${property.title}\nالتفاصيل: ${[property.type, property.area ? `${property.area} م²` : "", property.bedrooms > 0 ? `${property.bedrooms} غرف` : "", property.bathrooms ? `${property.bathrooms} حمام` : "", property.showPrice !== false ? property.priceFormatted : "أريد معرفة السعر", `${property.neighborhood} - ${property.location}`].filter(Boolean).join(" | ")}`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="group flex items-center justify-between w-full bg-secondary hover:bg-secondary/80 text-foreground font-bold rounded-2xl px-5 py-4 transition-all border-2 border-border hover:border-[#25D366]/40"

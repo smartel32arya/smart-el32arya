@@ -1,26 +1,18 @@
 import PropertyCard from "./PropertyCard";
 import { useGetFeaturedPropertiesQuery } from "@/store/api/propertiesApi";
 import { WHATSAPP_NUMBER } from "@/config";
-
-const SkeletonCard = () => (
-  <div className="bg-white rounded-2xl border border-border animate-pulse overflow-hidden">
-    <div className="h-52 bg-muted" />
-    <div className="p-5 space-y-3">
-      <div className="h-5 bg-muted rounded w-3/4" />
-      <div className="h-4 bg-muted rounded w-1/2" />
-      <div className="h-6 bg-muted rounded w-1/3" />
-    </div>
-  </div>
-);
+import { SkeletonCard } from "@/components/property/SkeletonCard";
+import { ErrorState } from "@/components/common/ErrorState";
+import { styles } from "@/lib/styles";
 
 const FeaturedProperties = () => {
-  const { data: properties = [], isLoading, isFetching, isError, isUninitialized } = useGetFeaturedPropertiesQuery();
-  const showSkeleton = isUninitialized || isLoading || (isFetching && !properties.length);
+  const { data: properties = [], isLoading, isError, refetch } = useGetFeaturedPropertiesQuery();
+  const isInitialLoad = isLoading;
 
   return (
-    <section id="properties" className="py-20 md:py-28 bg-background">
+    <section id="properties" className="py-14 md:py-28 bg-background">
       <div className="container">
-        <div className="text-center mb-12 md:mb-16">
+        <div className={`text-center mb-12 md:mb-16 transition-opacity duration-300 ${isInitialLoad ? "opacity-0" : "opacity-100"}`}>
           <h2 className="text-3xl md:text-5xl font-black text-foreground mb-4">
             عقارات <span className="text-gradient-gold">لقطة</span>
           </h2>
@@ -29,20 +21,22 @@ const FeaturedProperties = () => {
           </p>
         </div>
 
-        {showSkeleton && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
-          </div>
+        {isInitialLoad && (
+          <>
+            {/* Heading skeleton */}
+            <div className="text-center mb-12 md:mb-16 flex flex-col items-center gap-3">
+              <div className="h-10 md:h-14 w-64 bg-muted rounded-2xl animate-pulse" />
+              <div className="h-5 w-96 max-w-full bg-muted rounded-xl animate-pulse" />
+            </div>
+            <div className={styles.propertyGrid}>
+              {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+            </div>
+          </>
         )}
 
-        {isError && (
-          <div className="text-center py-20 bg-secondary rounded-3xl">
-            <div className="text-5xl mb-4">⚠️</div>
-            <p className="text-muted-foreground text-xl font-semibold">تعذّر تحميل العقارات</p>
-          </div>
-        )}
+        {isError && <ErrorState onRetry={refetch} />}
 
-        {!showSkeleton && !isError && properties.length === 0 && (
+        {!isInitialLoad && !isError && properties.length === 0 && (
           <div className="text-center py-20 bg-secondary rounded-3xl px-6">
             <div className="text-6xl mb-4">🏠</div>
             <p className="text-foreground font-black text-xl mb-2">لا توجد لقطات معروضة حالياً</p>
@@ -61,8 +55,8 @@ const FeaturedProperties = () => {
           </div>
         )}
 
-        {!showSkeleton && !isError && properties.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        {!isInitialLoad && !isError && properties.length > 0 && (
+          <div className={styles.propertyGrid}>
             {properties.map((property, i) => (
               <PropertyCard key={property.id} property={property} priority={i < 3} />
             ))}

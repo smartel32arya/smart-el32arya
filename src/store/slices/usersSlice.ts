@@ -7,8 +7,11 @@ export interface AdminUser {
   id: string;
   name: string;
   username: string;
+  email?: string;
+  phone?: string;
   role: UserRole;
   active: boolean;
+  expiresAt: string | null;
   createdAt: string;
 }
 
@@ -24,6 +27,7 @@ const initialState: UsersState = {
       username: "yussef",
       role: "super_admin",
       active: true,
+      expiresAt: null,
       createdAt: "2024-01-01",
     },
     {
@@ -32,6 +36,7 @@ const initialState: UsersState = {
       username: "ahmed",
       role: "property_admin",
       active: true,
+      expiresAt: null,
       createdAt: "2024-03-15",
     },
   ],

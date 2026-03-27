@@ -23,7 +23,19 @@ const SiteHeader = () => {
         {/* Logo */}
         <Link to="/" className="flex items-center group">
           <div className="p-1.5 rounded-xl border-2 border-gold/40 shadow-md group-hover:border-gold transition-colors bg-white">
-            <img src={logo} alt="logo" className="h-10 md:h-12 w-auto object-contain" />
+            <img
+              src={logo}
+              alt="logo"
+              className="h-10 md:h-12 w-auto object-contain"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+                (e.currentTarget.nextElementSibling as HTMLElement)!.style.display = "flex";
+              }}
+            />
+            <Building2
+              className="h-10 md:h-12 w-10 text-gold hidden items-center justify-center"
+              aria-hidden="true"
+            />
           </div>
         </Link>
 

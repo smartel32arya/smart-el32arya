@@ -71,7 +71,7 @@ const CustomSelect = ({ value, onChange, options, placeholder = "اختر...", c
 
   const dropdown = isOpen ? (
     <div style={dropdownStyle} dir="rtl" ref={dropdownRef}>
-      <div className="bg-white border-2 border-gold/20 rounded-2xl shadow-2xl overflow-hidden animate-scale-in">
+      <div role="listbox" className="bg-white border-2 border-gold/20 rounded-2xl shadow-2xl overflow-hidden animate-scale-in">
         <div className="max-h-72 overflow-y-auto custom-scrollbar p-1">
           {options.map((option) => {
             const isSelected = option.value === value;
@@ -79,6 +79,8 @@ const CustomSelect = ({ value, onChange, options, placeholder = "اختر...", c
               <button
                 key={option.value}
                 type="button"
+                role="option"
+                aria-selected={isSelected}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   handleSelect(option.value);
@@ -111,6 +113,9 @@ const CustomSelect = ({ value, onChange, options, placeholder = "اختر...", c
       <button
         ref={buttonRef}
         type="button"
+        role="combobox"
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
         onClick={() => (isOpen ? setIsOpen(false) : openDropdown())}
         className={`
           w-full h-[54px] px-5 text-right bg-white border-2 rounded-xl
