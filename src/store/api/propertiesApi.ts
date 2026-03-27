@@ -15,6 +15,8 @@ export interface PropertiesResponse {
   page: number;
   pageSize: number;
   totalPages: number;
+  totalActive?: number;
+  totalFeatured?: number;
 }
 
 export interface PropertyFilters {

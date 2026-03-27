@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useMediaGallery } from "@/hooks/useMediaGallery";
+import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 import {
   ArrowRight, MapPin, BedDouble, Bath, Maximize,
   MessageCircle, Send, CheckCircle2, AlertCircle, ArrowLeft,
@@ -56,27 +58,57 @@ const PropertyDetailsSkeleton = () => (
 
 const PropertyDetails = () => {
   const { id } = useParams<{ id: string }>();
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState<"photos" | "video">("photos");
-  const [lightbox, setLightbox] = useState(false);
   const [name, setName] = useState("");
   const [msgText, setMsgText] = useState("");
 
   const { data: property, isLoading, isError, refetch } = useGetPropertyByIdQuery(id ?? "");
 
+  const imageCount = property?.images?.length ?? 0;
+  const {
+    activeIndex,
+    activeTab,
+    lightboxOpen: lightbox,
+    goNext,
+    goPrev,
+    openLightbox,
+    closeLightbox,
+    setTab: setActiveTab,
+    setIndex: setActiveIndex,
+  } = useMediaGallery(imageCount);
+
+  // Thumbnail strip refs for auto-scroll
+  const thumbnailStripRef = useRef<HTMLDivElement>(null);
+  const lightboxThumbnailStripRef = useRef<HTMLDivElement>(null);
+
+  // Swipe gesture refs
+  const mainImageRef = useRef<HTMLDivElement>(null);
+  const lightboxImageRef = useRef<HTMLDivElement>(null);
+
+  const { dragOffset: mainDragOffset, isDragging: mainIsDragging } = useSwipeGesture(mainImageRef, { onSwipeLeft: goPrev, onSwipeRight: goNext });
+  const { dragOffset: lightboxDragOffset, isDragging: lightboxIsDragging } = useSwipeGesture(lightboxImageRef, { onSwipeLeft: goPrev, onSwipeRight: goNext });
+
+  // Auto-scroll gallery thumbnail strip when activeIndex changes
+  useEffect(() => {
+    if (!thumbnailStripRef.current) return;
+    const strip = thumbnailStripRef.current;
+    const activeThumb = strip.querySelectorAll("button")[activeIndex];
+    if (activeThumb) {
+      activeThumb.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }
+  }, [activeIndex]);
+
+  // Auto-scroll lightbox thumbnail strip when activeIndex changes
+  useEffect(() => {
+    if (!lightboxThumbnailStripRef.current) return;
+    const strip = lightboxThumbnailStripRef.current;
+    const activeThumb = strip.querySelectorAll("button")[activeIndex];
+    if (activeThumb) {
+      activeThumb.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }
+  }, [activeIndex]);
+
   // Use property's own contact number if available, fallback to site default
   const contactNumber = property?.contactPhone || WHATSAPP_NUMBER;
-
-  useEffect(() => {
-    if (!lightbox || !property) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft")  setActiveIndex((i) => (i + 1) % property.images.length);
-      if (e.key === "ArrowRight") setActiveIndex((i) => (i - 1 + property.images.length) % property.images.length);
-      if (e.key === "Escape")     setLightbox(false);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [lightbox, property]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,7 +168,7 @@ const PropertyDetails = () => {
           {lightbox && property && (
             <div
               className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
-              onClick={() => setLightbox(false)}
+              onClick={() => closeLightbox()}
             >
               {/* close */}
               <button className="absolute top-4 end-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors z-10">
@@ -149,24 +181,30 @@ const PropertyDetails = () => {
               </span>
 
               {/* image */}
-              <img
-                src={property.images[activeIndex] || "/placeholder.svg"}
-                alt={property.title}
-                className="max-w-[90vw] max-h-[85vh] object-contain rounded-xl select-none"
-                onClick={(e) => e.stopPropagation()}
-              />
+              <div ref={lightboxImageRef} className="flex items-center justify-center overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                <img
+                  src={property.images[activeIndex] || "/placeholder.svg"}
+                  alt={property.title}
+                  className="max-w-[90vw] max-h-[85vh] object-contain rounded-xl select-none"
+                  style={{
+                    transform: `translateX(${lightboxDragOffset}px)`,
+                    transition: lightboxIsDragging ? "none" : "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+                    willChange: "transform",
+                  }}
+                />
+              </div>
 
               {/* prev */}
               {property.images.length > 1 && (
                 <>
                   <button
-                    onClick={(e) => { e.stopPropagation(); setActiveIndex((i) => (i - 1 + property.images.length) % property.images.length); }}
+                    onClick={(e) => { e.stopPropagation(); goPrev(); }}
                     className="absolute start-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors"
                   >
                     <ChevronRight className="w-6 h-6" />
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); setActiveIndex((i) => (i + 1) % property.images.length); }}
+                    onClick={(e) => { e.stopPropagation(); goNext(); }}
                     className="absolute end-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors"
                   >
                     <ChevronLeft className="w-6 h-6" />
@@ -175,7 +213,7 @@ const PropertyDetails = () => {
               )}
 
               {/* thumbnails strip */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 px-4 py-2 bg-black/60 rounded-2xl overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <div ref={lightboxThumbnailStripRef} className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 px-4 py-2 bg-black/60 rounded-2xl overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {property.images.map((img, i) => (
                   <button
                     key={i}
@@ -250,19 +288,24 @@ const PropertyDetails = () => {
                   {activeTab === "photos" && (
                     <>
                       {/* Main image */}
-                      <div className="relative bg-black group" style={{ aspectRatio: "16/9" }}>
+                      <div ref={mainImageRef} className="relative bg-black group overflow-hidden" style={{ aspectRatio: "16/9" }}>
                         <img
                           src={property.images[activeIndex] || "/placeholder.svg"}
                           alt={property.title}
                           className="w-full h-full object-cover cursor-zoom-in"
                           loading="eager"
-                          onClick={() => setLightbox(true)}
+                          onClick={() => openLightbox()}
                           onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/placeholder.svg"; }}
+                          style={{
+                            transform: `translateX(${mainDragOffset}px)`,
+                            transition: mainIsDragging ? "none" : "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+                            willChange: "transform",
+                          }}
                         />
 
                         {/* zoom hint */}
                         <button
-                          onClick={() => setLightbox(true)}
+                          onClick={() => openLightbox()}
                           className="absolute top-4 end-4 w-9 h-9 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-sm text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
                         >
                           <ZoomIn className="w-4 h-4" />
@@ -277,14 +320,14 @@ const PropertyDetails = () => {
                         {property.images.length > 1 && (
                           <>
                             <button
-                              onClick={() => setActiveIndex((i) => (i - 1 + property.images.length) % property.images.length)}
-                              className="absolute top-1/2 start-3 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-sm text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                              onClick={() => goPrev()}
+                              className="absolute top-1/2 start-3 -translate-y-1/2 w-11 h-11 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-sm text-white flex items-center justify-center transition-all"
                             >
                               <ChevronRight className="w-5 h-5" />
                             </button>
                             <button
-                              onClick={() => setActiveIndex((i) => (i + 1) % property.images.length)}
-                              className="absolute top-1/2 end-3 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-sm text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                              onClick={() => goNext()}
+                              className="absolute top-1/2 end-3 -translate-y-1/2 w-11 h-11 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-sm text-white flex items-center justify-center transition-all"
                             >
                               <ChevronLeft className="w-5 h-5" />
                             </button>
@@ -294,7 +337,7 @@ const PropertyDetails = () => {
 
                       {/* Thumbnails */}
                       {property.images.length > 1 && (
-                        <div className="flex gap-2 p-3 overflow-x-auto bg-black/80 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                        <div ref={thumbnailStripRef} className="flex gap-2 p-3 overflow-x-auto bg-black/80 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                           {property.images.map((img, i) => (
                             <button
                               key={i}

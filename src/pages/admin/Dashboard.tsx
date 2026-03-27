@@ -5,7 +5,7 @@ import {
   TrendingUp, Eye, EyeOff, Star, ShieldCheck, UserCircle,
 } from "lucide-react";
 import { SITE_NAME } from "@/config";
-import { useGetAdminPropertiesQuery, useGetPropertiesQuery, useGetFeaturedPropertiesQuery } from "@/store/api/propertiesApi";
+import { useGetAdminPropertiesQuery } from "@/store/api/propertiesApi";
 import { useGetUsersQuery } from "@/store/api/usersApi";
 
 interface AdminLayoutProps {
@@ -120,14 +120,16 @@ const Dashboard = () => {
   })();
   const isSuperAdmin = currentUser?.role === "super_admin";
 
-  const { data: propertiesData } = useGetAdminPropertiesQuery({ neighborhood: "الكل", type: "الكل", priceRange: "all", sort: "newest", page: 1, pageSize: 5 });
-  const { data: activeData } = useGetPropertiesQuery({ neighborhood: "الكل", type: "الكل", priceRange: "all", sort: "newest", page: 1, pageSize: 1 });
-  const { data: featured = [] } = useGetFeaturedPropertiesQuery(undefined, { skip: !isSuperAdmin });
-  const { data: allUsers = [] } = useGetUsersQuery();
+  const { data: propertiesData } = useGetAdminPropertiesQuery(
+    { neighborhood: "الكل", type: "الكل", priceRange: "all", sort: "newest", page: 1, pageSize: 5 },
+    { refetchOnMountOrArgChange: true, refetchOnFocus: true }
+  );
+  const { data: allUsers = [] } = useGetUsersQuery(undefined, { refetchOnMountOrArgChange: true, refetchOnFocus: true });
 
   const propStats = {
     total: propertiesData?.total ?? 0,
-    active: activeData?.total ?? 0,
+    active: propertiesData?.totalActive ?? 0,
+    featured: propertiesData?.totalFeatured ?? 0,
   };
 
   const userStats = {
@@ -140,8 +142,8 @@ const Dashboard = () => {
   const statCards = [
     { label: "إجمالي العقارات", value: propStats.total, icon: Building2, color: "text-gold", bg: "bg-gold/10" },
     { label: "عقارات نشطة", value: propStats.active, icon: Eye, color: "text-green-600", bg: "bg-green-50" },
+    { label: "عقارات مميزة", value: propStats.featured, icon: Star, color: "text-yellow-500", bg: "bg-yellow-50" },
     ...(isSuperAdmin ? [
-      { label: "عقارات مميزة", value: featured.length, icon: Star, color: "text-yellow-500", bg: "bg-yellow-50" },
       { label: "إجمالي المستخدمين", value: userStats.total, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
     ] : []),
   ];

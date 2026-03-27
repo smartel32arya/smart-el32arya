@@ -69,6 +69,7 @@ Returns a paginated list of active properties. Only properties added by currentl
 {
   "data": [],
   "total": 42,
+  "totalActive": 35,
   "page": 1,
   "pageSize": 10,
   "totalPages": 5

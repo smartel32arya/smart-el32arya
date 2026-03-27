@@ -32,12 +32,12 @@ export function useMediaGallery(imageCount: number): UseMediaGalleryReturn {
   const setIndex = useCallback((i: number) => setActiveIndex(i), []);
 
   useEffect(() => {
-    if (!lightboxOpen) return;
-
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") goNext();
-      else if (e.key === "ArrowLeft") goPrev();
-      else if (e.key === "Escape") closeLightbox();
+      // Always navigate with arrow keys (gallery + lightbox)
+      if (e.key === "ArrowRight") { e.preventDefault(); goPrev(); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); goNext(); }
+      // Escape only closes lightbox
+      else if (e.key === "Escape" && lightboxOpen) closeLightbox();
     };
 
     window.addEventListener("keydown", handleKeyDown);
