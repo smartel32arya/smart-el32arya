@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { Link } from "react-router-dom";
 import { AdminLayout } from "./Dashboard";
 import { useGetAdminPropertiesQuery, useDeletePropertyMutation, PAGE_SIZE } from "@/store/api/propertiesApi";
@@ -219,10 +219,9 @@ const AdminProperties = () => {
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
                   .map((p, idx, arr) => (
-                    <>
-                      {idx > 0 && arr[idx - 1] !== p - 1 && <span key={`dots-${p}`} className="text-muted-foreground px-1">…</span>}
+                    <Fragment key={p}>
+                      {idx > 0 && arr[idx - 1] !== p - 1 && <span className="text-muted-foreground px-1">…</span>}
                       <button
-                        key={p}
                         onClick={() => setPage(p)}
                         className={`w-9 h-9 rounded-lg text-sm font-bold transition-all ${
                           p === page ? "gradient-gold text-white shadow-md" : "border border-border hover:border-gold/50"
@@ -230,7 +229,7 @@ const AdminProperties = () => {
                       >
                         {p}
                       </button>
-                    </>
+                    </Fragment>
                   ))
                 }
                 <button

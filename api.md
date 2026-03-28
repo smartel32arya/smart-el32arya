@@ -33,9 +33,15 @@ Obtain a token via [POST /api/auth/login](#post-apiauthlogin).
   - [PUT /api/users/me](#put-apiusersme)
 - [Admin — Properties](#admin--properties)
   - [GET /api/admin/properties](#get-apiadminproperties)
+  - [POST /api/admin/properties/upload](#post-apiadminpropertiesupload)
   - [POST /api/admin/properties](#post-apiadminproperties)
   - [GET /api/admin/properties/:id](#get-apiadminpropertiesid)
   - [PUT /api/admin/properties/:id](#put-apiadminpropertiesid)
+  - [POST /api/admin/properties/:id/images](#post-apiadminpropertiesidimages)
+  - [PUT /api/admin/properties/:id/images](#put-apiadminpropertiesidimages)
+  - [POST /api/admin/properties/:id/video](#post-apiadminpropertiesidvideo)
+  - [PUT /api/admin/properties/:id/video](#put-apiadminpropertiesidvideo)
+  - [DELETE /api/admin/properties/:id/video](#delete-apiadminpropertiesidvideo)
   - [DELETE /api/admin/properties/:id](#delete-apiadminpropertiesid)
 - [Admin — Users](#admin--users)
   - [GET /api/admin/users](#get-apiadminusers)
@@ -237,13 +243,35 @@ Returns a paginated list of properties.
 
 ---
 
-### POST /api/admin/properties
+### POST /api/admin/properties/upload
 
-Creates a new property. Accepts `multipart/form-data` to support file uploads.
+Uploads a single image or video file to Cloudinary and returns its URL. Use this to get a URL before creating or editing a property.
 
 **Auth** — Bearer token required
 
 **Request Body** `multipart/form-data`
+
+- `file` (file, required) — image or video file.
+  - Images: `image/jpeg`, `image/png`, `image/webp` — max 5 MB
+  - Videos: `video/mp4`, `video/quicktime`, `video/x-msvideo`, `video/webm` — max 100 MB
+
+**Response `200`**
+
+```json
+{ "url": "https://res.cloudinary.com/..." }
+```
+
+**Response `400`** — no file provided, unsupported MIME type, or file too large
+
+---
+
+### POST /api/admin/properties
+
+Creates a new property. Accepts scalar fields as JSON. `images` and `video` are optional — pass URLs obtained from the upload endpoint.
+
+**Auth** — Bearer token required
+
+**Request Body** `application/json`
 
 Required fields:
 - `title` (string, min 1 char)
@@ -254,16 +282,16 @@ Required fields:
 - `type` (string)
 
 Optional fields:
-- `listingType` (string, `"sale"` | `"rent"`, default `"sale"`) — whether the property is listed for sale or rent
+- `listingType` (string, `"sale"` | `"rent"`, default `"sale"`)
 - `bedrooms` (integer, min 0)
 - `bathrooms` (integer, min 0)
 - `area` (number, positive)
-- `featured` (`"true"` | `"false"`, default `"false"`)
-- `active` (`"true"` | `"false"`, default `"true"`)
-- `showPrice` (`"true"` | `"false"`, default `"true"`)
-- `amenities` (string) — JSON-encoded array, e.g. `["مسبح","جراج"]`
-- `images` (file[]) — one or more image files, uploaded to Cloudinary
-- `video` (file) — optional video file, uploaded to Cloudinary
+- `featured` (boolean, default `false`)
+- `active` (boolean, default `true`)
+- `showPrice` (boolean, default `true`)
+- `amenities` (string[], default `[]`)
+- `images` (string[]) — array of Cloudinary URLs
+- `video` (string | null) — Cloudinary URL or `null`
 
 **Response `201`** — [Property object](#property-object)
 
@@ -304,7 +332,7 @@ Returns a single property by ID.
 
 ### PUT /api/admin/properties/:id
 
-Updates an existing property. All fields are optional.
+Updates an existing property's scalar/text fields. Does not touch `images` or `video` — use the dedicated media endpoints for those.
 
 **Auth** — Bearer token required
 
@@ -315,16 +343,181 @@ Updates an existing property. All fields are optional.
 
 - `id` — property MongoDB ObjectId
 
-**Request Body** `multipart/form-data`
+**Request Body** `application/json`
 
-All fields from [POST /api/admin/properties](#post-apiadminproperties) are accepted as optional, plus:
-
-- `existingImages` (string) — JSON-encoded array of existing image URLs to keep. Any URL not listed is deleted from Cloudinary.
-- `videoUrl` (string) — pass an empty string `""` to remove the current video.
+All fields from [POST /api/admin/properties](#post-apiadminproperties) are accepted as optional, including `images` (string[]) and `video` (string | null).
 
 **Response `200`** — updated [Property object](#property-object)
 
 **Response `400`** — validation error
+
+**Response `403`**
+
+```json
+{ "message": "غير مصرح: هذا العقار لم يتم إضافته بواسطتك" }
+```
+
+**Response `404`**
+
+```json
+{ "message": "العقار غير موجود" }
+```
+
+---
+
+### POST /api/admin/properties/:id/images
+
+Uploads one or more images and appends them to the property's `images` array.
+
+**Auth** — Bearer token required
+
+- `super_admin` — can upload to any property
+- `property_admin` — can only upload to properties they created
+
+**Path Parameters**
+
+- `id` — property MongoDB ObjectId
+
+**Request Body** `multipart/form-data`
+
+- `images` (file[], required) — one or more image files. Accepted MIME types: `image/jpeg`, `image/png`, `image/webp`. Max size: 5 MB per file.
+
+**Response `200`** — updated [Property object](#property-object)
+
+**Response `400`** — no files provided, unsupported MIME type, or file too large
+
+**Response `403`**
+
+```json
+{ "message": "غير مصرح: هذا العقار لم يتم إضافته بواسطتك" }
+```
+
+**Response `404`**
+
+```json
+{ "message": "العقار غير موجود" }
+```
+
+---
+
+### PUT /api/admin/properties/:id/images
+
+Replaces the property's image gallery. Deletes removed images from Cloudinary, uploads new ones, and returns the merged result.
+
+**Auth** — Bearer token required
+
+- `super_admin` — can replace images on any property
+- `property_admin` — can only replace images on properties they created
+
+**Path Parameters**
+
+- `id` — property MongoDB ObjectId
+
+**Request Body** `multipart/form-data`
+
+- `existingImages` (string, optional) — JSON-encoded array of currently stored image URLs to keep, e.g. `["https://res.cloudinary.com/..."]`. Any stored URL not in this list is deleted from Cloudinary. If omitted, all current images are kept and new uploads are appended.
+- `images` (file[], optional) — new image files to upload and append. Same MIME/size rules as POST.
+
+**Response `200`** — updated [Property object](#property-object)
+
+**Response `403`**
+
+```json
+{ "message": "غير مصرح: هذا العقار لم يتم إضافته بواسطتك" }
+```
+
+**Response `404`**
+
+```json
+{ "message": "العقار غير موجود" }
+```
+
+---
+
+### POST /api/admin/properties/:id/video
+
+Uploads a video and sets it as the property's `video` field.
+
+**Auth** — Bearer token required
+
+- `super_admin` — can upload to any property
+- `property_admin` — can only upload to properties they created
+
+**Path Parameters**
+
+- `id` — property MongoDB ObjectId
+
+**Request Body** `multipart/form-data`
+
+- `video` (file, required) — video file. Accepted MIME types: `video/mp4`, `video/quicktime`, `video/x-msvideo`, `video/webm`. Max size: 100 MB.
+
+**Response `200`** — updated [Property object](#property-object)
+
+**Response `400`** — no file provided, unsupported MIME type, or file too large
+
+**Response `403`**
+
+```json
+{ "message": "غير مصرح: هذا العقار لم يتم إضافته بواسطتك" }
+```
+
+**Response `404`**
+
+```json
+{ "message": "العقار غير موجود" }
+```
+
+---
+
+### PUT /api/admin/properties/:id/video
+
+Replaces the property's existing video. Deletes the old video from Cloudinary (if present) before uploading the new one.
+
+**Auth** — Bearer token required
+
+- `super_admin` — can replace video on any property
+- `property_admin` — can only replace video on properties they created
+
+**Path Parameters**
+
+- `id` — property MongoDB ObjectId
+
+**Request Body** `multipart/form-data`
+
+- `video` (file, required) — same MIME/size rules as POST.
+
+**Response `200`** — updated [Property object](#property-object)
+
+**Response `400`** — no file provided, unsupported MIME type, or file too large
+
+**Response `403`**
+
+```json
+{ "message": "غير مصرح: هذا العقار لم يتم إضافته بواسطتك" }
+```
+
+**Response `404`**
+
+```json
+{ "message": "العقار غير موجود" }
+```
+
+---
+
+### DELETE /api/admin/properties/:id/video
+
+Removes the property's video. Deletes it from Cloudinary (if present) and sets `video` to `null`. Returns `200` even if no video was set.
+
+**Auth** — Bearer token required
+
+- `super_admin` — can remove video from any property
+- `property_admin` — can only remove video from properties they created
+
+**Path Parameters**
+
+- `id` — property MongoDB ObjectId
+
+**Response `200`** — updated [Property object](#property-object) with `video: null`
 
 **Response `403`**
 

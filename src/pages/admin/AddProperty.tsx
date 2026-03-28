@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "./Dashboard";
-import { Upload, X, Plus, Star, Loader2, Video, Home, DollarSign, MapPin, Sparkles, ImageIcon, Settings } from "lucide-react";
+import { Upload, X, Plus, Loader2, Video, Home, DollarSign, MapPin, Sparkles, ImageIcon, Settings, RefreshCw } from "lucide-react";
 import CustomSelect from "@/components/CustomSelect";
 import { NEIGHBORHOODS, PROPERTY_TYPES, AMENITY_SUGGESTIONS } from "@/config";
 import { useAdminActions } from "@/hooks/useAdminActions";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import { toast } from "sonner";
 
 interface PropertyFormData {
@@ -19,8 +20,6 @@ interface PropertyFormData {
   featured: boolean;
   active: boolean;
   showPrice: boolean;
-  images: File[];
-  videos: File[];
 }
 
 const inputClass =
@@ -88,17 +87,17 @@ const Toggle = ({
 
 const AddProperty = () => {
   const navigate = useNavigate();
-  const { createProperty, isCreating, uploadProgress } = useAdminActions();
+  const { createProperty, isCreating } = useAdminActions();
+  const imageUpload = useFileUpload();
+  const videoUpload = useFileUpload();
   const isSaving = isCreating;
   const [formData, setFormData] = useState<PropertyFormData>({
     title: "", description: "", price: "", neighborhood: "",
     type: "", area: "", listingType: "sale",
-    amenities: [], featured: false, active: true, showPrice: true, images: [], videos: [],
+    amenities: [], featured: false, active: true, showPrice: true,
   });
   const [dragActive, setDragActive] = useState(false);
   const [dragVideoActive, setDragVideoActive] = useState(false);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [videoNames, setVideoNames] = useState<string[]>([]);
   const [amenityInput, setAmenityInput] = useState("");
   const [isCustomNeighborhood, setIsCustomNeighborhood] = useState(false);
   const [error, setError] = useState("");
@@ -107,25 +106,13 @@ const AddProperty = () => {
     setFormData((prev) => ({ ...prev, [key]: value }));
 
   const handleFiles = (files: File[]) => {
-    const imgs = files.filter((f) => f.type.startsWith("image/"));
-    set("images", [...formData.images, ...imgs]);
-    imgs.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreviews((p) => [...p, reader.result as string]);
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const removeImage = (i: number) => {
-    set("images", formData.images.filter((_, idx) => idx !== i));
-    setImagePreviews((p) => p.filter((_, idx) => idx !== i));
+    imageUpload.addFiles(files, "image");
   };
 
   const handleVideos = (files: File[]) => {
     const vid = files.find((f) => f.type.startsWith("video/"));
     if (!vid) return;
-    set("videos", [vid]);
-    setVideoNames([vid.name]);
+    videoUpload.addFiles([vid], "video");
   };
 
   const addAmenity = (val: string) => {
@@ -139,7 +126,15 @@ const AddProperty = () => {
     e.preventDefault();
     setError("");
     if (Number(formData.price) < 55000) {
-      setError("السعر يجب أن يكون أكبر من ٥٥,٠٠٠ ج.م");
+      toast.error("السعر يجب أن يكون أكبر من ٥٥,٠٠٠ ج.م");
+      return;
+    }
+    if (!formData.neighborhood.trim()) {
+      toast.error("يرجى اختيار الحي");
+      return;
+    }
+    if (!formData.type) {
+      toast.error("يرجى اختيار نوع العقار");
       return;
     }
     const formFields = {
@@ -156,7 +151,7 @@ const AddProperty = () => {
       showPrice: formData.showPrice,
     };
     try {
-      await createProperty(formFields, formData.images, formData.videos[0] ?? null);
+      await createProperty(formFields, imageUpload.urls, videoUpload.urls[0] ?? null);
       toast.success("تم نشر العقار بنجاح", {
         description: `"${formData.title}" أصبح متاحاً الآن للزوار`,
         duration: 4000,
@@ -172,6 +167,7 @@ const AddProperty = () => {
 
   const neighborhoods = NEIGHBORHOODS.filter((n) => n !== "الكل");
   const propertyTypes = PROPERTY_TYPES.filter((t) => t !== "الكل");
+  const isSubmitDisabled = isSaving || imageUpload.isAnyUploading || videoUpload.isAnyUploading;
 
   return (
     <AdminLayout>
@@ -221,10 +217,7 @@ const AddProperty = () => {
 
           {/* ── 2. Location & Type ── */}
           <Section icon={MapPin} title="الموقع والنوع">
-
-            {/* Neighborhood + Area row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Neighborhood */}
               <div className="space-y-2">
                 <label className={labelClass}>الحي <span className="text-destructive normal-case">*</span></label>
                 <CustomSelect
@@ -265,8 +258,6 @@ const AddProperty = () => {
                   </div>
                 )}
               </div>
-
-              {/* Area */}
               <div className="space-y-2">
                 <label className={labelClass}>
                   المساحة (م²){" "}
@@ -283,7 +274,6 @@ const AddProperty = () => {
               </div>
             </div>
 
-            {/* Property type chips */}
             <div className="mt-5 pt-5 border-t border-border">
               <label className={labelClass}>نوع العقار <span className="text-destructive normal-case">*</span></label>
               <div className="flex flex-wrap gap-2 mt-2">
@@ -304,7 +294,6 @@ const AddProperty = () => {
               </div>
             </div>
 
-            {/* Listing type */}
             <div className="mt-5 pt-5 border-t border-border">
               <label className={labelClass}>نوع العرض <span className="text-destructive normal-case">*</span></label>
               <div className="grid grid-cols-2 gap-3 mt-2">
@@ -348,7 +337,6 @@ const AddProperty = () => {
                 <p className="text-gold text-xs font-bold mt-1.5">{Number(formData.price).toLocaleString("ar-EG")} ج.م</p>
               ) : null}
             </div>
-
             <div className="mt-4 pt-4 border-t border-border">
               <Toggle
                 checked={formData.showPrice}
@@ -361,7 +349,6 @@ const AddProperty = () => {
 
           {/* ── 4. Amenities ── */}
           <Section icon={Sparkles} title="المميزات والمرافق">
-            {/* Suggestions */}
             <div className="flex flex-wrap gap-2 mb-4">
               {AMENITY_SUGGESTIONS.filter((a) => !formData.amenities.includes(a)).map((a) => (
                 <button
@@ -375,8 +362,6 @@ const AddProperty = () => {
                 </button>
               ))}
             </div>
-
-            {/* Custom input */}
             <div className="flex gap-2">
               <input
                 type="text"
@@ -394,7 +379,6 @@ const AddProperty = () => {
                 إضافة
               </button>
             </div>
-
             {formData.amenities.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-border">
                 {formData.amenities.map((a) => (
@@ -411,7 +395,7 @@ const AddProperty = () => {
 
           {/* ── 5. Media ── */}
           <Section icon={ImageIcon} title="الصور والفيديو">
-            {/* Image upload */}
+            {/* Image upload drop zone */}
             <div
               onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
               onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}
@@ -427,36 +411,82 @@ const AddProperty = () => {
                   <Upload className="w-6 h-6 text-white" />
                 </div>
                 <p className="font-bold text-sm text-foreground">اسحب الصور هنا أو انقر للاختيار</p>
-                <p className="text-xs text-muted-foreground">PNG, JPG, WEBP — حتى 10MB لكل صورة</p>
+                <p className="text-xs text-muted-foreground">PNG, JPG, WEBP — حتى 5MB لكل صورة</p>
               </label>
             </div>
 
-            {imagePreviews.length > 0 && (
+            {/* Per-file image UI */}
+            {imageUpload.items.length > 0 && (
               <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
-                {imagePreviews.map((src, i) => (
-                  <div key={i} className="relative group rounded-xl overflow-hidden border-2 border-border aspect-square">
-                    <img src={src} alt="" className="w-full h-full object-cover" />
-                    {i === 0 && (
-                      <span className="absolute bottom-1 inset-x-1 text-center bg-gold text-white text-[9px] sm:text-[10px] font-bold py-0.5 rounded-md">
-                        رئيسية
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removeImage(i)}
-                      className="absolute top-1 left-1 bg-black/60 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
+                {imageUpload.items.map((item, i) => {
+                  const previewUrl = item.status === "done" && item.url
+                    ? item.url
+                    : URL.createObjectURL(item.file);
+                  return (
+                    <div key={item.id} className="relative group rounded-xl overflow-hidden border-2 border-border aspect-square">
+                      <img src={previewUrl} alt="" className="w-full h-full object-cover" />
+
+                      {/* Uploading overlay */}
+                      {item.status === "uploading" && (
+                        <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-1">
+                          <Loader2 className="w-6 h-6 text-white animate-spin" />
+                          <span className="text-white text-[10px] font-bold">{item.progress}%</span>
+                        </div>
+                      )}
+
+                      {/* Error overlay */}
+                      {item.status === "error" && (
+                        <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1 p-1">
+                          <p className="text-white text-[9px] text-center leading-tight line-clamp-2">{item.error}</p>
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => imageUpload.retryItem(item.id)}
+                              className="bg-blue-500 text-white p-1 rounded-full"
+                              title="إعادة المحاولة"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => imageUpload.removeItem(item.id)}
+                              className="bg-destructive text-white p-1 rounded-full"
+                              title="حذف"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Primary badge */}
+                      {i === 0 && item.status !== "error" && (
+                        <span className="absolute bottom-1 inset-x-1 text-center bg-gold text-white text-[9px] sm:text-[10px] font-bold py-0.5 rounded-md">
+                          رئيسية
+                        </span>
+                      )}
+
+                      {/* Remove button (done state) */}
+                      {item.status === "done" && (
+                        <button
+                          type="button"
+                          onClick={() => imageUpload.removeItem(item.id)}
+                          className="absolute top-1 left-1 bg-black/60 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
             {/* Video upload */}
             <div className="mt-4 pt-4 border-t border-border">
               <label className={labelClass}>فيديو <span className="text-muted-foreground normal-case font-normal">اختياري — فيديو واحد فقط</span></label>
-              {formData.videos.length === 0 ? (
+
+              {videoUpload.items.length === 0 ? (
                 <div
                   onDragEnter={(e) => { e.preventDefault(); setDragVideoActive(true); }}
                   onDragLeave={(e) => { e.preventDefault(); setDragVideoActive(false); }}
@@ -473,45 +503,65 @@ const AddProperty = () => {
                     </div>
                     <div className="text-center sm:text-right">
                       <p className="font-bold text-sm text-foreground">اسحب الفيديو أو انقر للاختيار</p>
-                      <p className="text-xs text-muted-foreground">MP4, MOV, AVI</p>
+                      <p className="text-xs text-muted-foreground">MP4, MOV, AVI, WebM — حتى 100MB</p>
                     </div>
                   </label>
                 </div>
               ) : (
-                <div className="rounded-xl border border-blue-200 bg-blue-50 overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
-                        {isUploading && videoUploadProgress !== null
-                          ? <Loader2 className="w-4 h-4 text-white animate-spin" />
-                          : <Video className="w-4 h-4 text-white" />
-                        }
+                videoUpload.items.map((item) => (
+                  <div key={item.id} className="rounded-xl border border-blue-200 bg-blue-50 overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
+                          {item.status === "uploading"
+                            ? <Loader2 className="w-4 h-4 text-white animate-spin" />
+                            : <Video className="w-4 h-4 text-white" />
+                          }
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-foreground truncate">{item.file.name}</p>
+                          {item.status === "uploading" && (
+                            <>
+                              <p className="text-xs text-blue-600 font-medium">جاري الرفع... {item.progress}%</p>
+                              <div className="w-full bg-blue-100 rounded-full h-1.5 mt-1">
+                                <div
+                                  className="bg-blue-500 h-1.5 rounded-full transition-all duration-200"
+                                  style={{ width: `${item.progress}%` }}
+                                />
+                              </div>
+                            </>
+                          )}
+                          {item.status === "done" && (
+                            <p className="text-xs text-green-600 font-medium">تم الرفع بنجاح</p>
+                          )}
+                          {item.status === "error" && (
+                            <p className="text-xs text-destructive font-medium">{item.error}</p>
+                          )}
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-foreground truncate">{videoNames[0]}</p>
-                        {isUploading && videoUploadProgress !== null && (
-                          <p className="text-xs text-blue-600 font-medium">جاري الرفع... {videoUploadProgress}%</p>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {item.status === "error" && (
+                          <button
+                            type="button"
+                            onClick={() => videoUpload.retryItem(item.id)}
+                            className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors"
+                            title="إعادة المحاولة"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                          </button>
                         )}
+                        <button
+                          type="button"
+                          disabled={item.status === "uploading"}
+                          onClick={() => videoUpload.removeItem(item.id)}
+                          className="p-1.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      disabled={isSaving}
-                      onClick={() => { set("videos", []); setVideoNames([]); }}
-                      className="p-1.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0 disabled:opacity-40 disabled:pointer-events-none"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
                   </div>
-                  {isUploading && videoUploadProgress !== null && (
-                    <div className="h-1.5 bg-blue-100">
-                      <div
-                        className="h-1.5 bg-blue-500 transition-all duration-300"
-                        style={{ width: `${videoUploadProgress}%` }}
-                      />
-                    </div>
-                  )}
-                </div>
+                ))
               )}
             </div>
           </Section>
@@ -541,28 +591,14 @@ const AddProperty = () => {
 
           {/* ── Submit ── */}
           <div className="sticky bottom-0 bg-background/90 backdrop-blur-md pt-3 pb-4 -mx-4 px-4 lg:-mx-8 lg:px-8 border-t border-border/50 mt-2">
-            {uploadProgress !== null && (
-              <div className="mb-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-bold text-blue-600">جاري الرفع...</span>
-                  <span className="text-xs font-bold text-blue-600">{uploadProgress}%</span>
-                </div>
-                <div className="w-full bg-blue-100 rounded-full h-2">
-                  <div
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
-                  />
-                </div>
-              </div>
-            )}
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSubmitDisabled}
               className="w-full gradient-gold text-white font-black text-base py-4 rounded-2xl shadow-lg hover:opacity-90 hover:shadow-xl transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-60 disabled:translate-y-0 min-h-[56px]"
             >
-              {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-              {isSaving && uploadProgress !== null
-                ? `جاري الرفع... ${uploadProgress}%`
+              {(isSaving || imageUpload.isAnyUploading || videoUpload.isAnyUploading) ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+              {imageUpload.isAnyUploading || videoUpload.isAnyUploading
+                ? "جاري رفع الملفات..."
                 : isSaving
                 ? "جاري الحفظ..."
                 : "نشر العقار"}

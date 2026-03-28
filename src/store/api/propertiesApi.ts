@@ -154,6 +154,11 @@ export const propertiesApi = createApi({
       query: ({ id }) => ({ url: `/admin/properties/${id}/video`, method: "DELETE" }),
     }),
 
+    // POST /admin/properties/upload
+    uploadPropertyFile: builder.mutation<{ url: string }, FormData>({
+      query: (formData) => ({ url: "/admin/properties/upload", method: "POST", body: formData }),
+    }),
+
   }),
 });
 
@@ -171,4 +176,5 @@ export const {
   useAddPropertyVideoMutation,
   useReplacePropertyVideoMutation,
   useDeletePropertyVideoMutation,
+  useUploadPropertyFileMutation,
 } = propertiesApi;

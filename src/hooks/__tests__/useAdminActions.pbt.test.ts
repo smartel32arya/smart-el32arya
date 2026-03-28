@@ -18,11 +18,6 @@ import { vi, describe, it, expect, beforeEach } from "vitest";
 
 const mockCreatePropertyMutationFn = vi.fn();
 const mockUpdatePropertyMutationFn = vi.fn();
-const mockAppendPropertyImagesMutationFn = vi.fn();
-const mockReplacePropertyImagesMutationFn = vi.fn();
-const mockAddPropertyVideoMutationFn = vi.fn();
-const mockReplacePropertyVideoMutationFn = vi.fn();
-const mockDeletePropertyVideoMutationFn = vi.fn();
 
 // Each mutation trigger returns an object with an unwrap() method (not a plain Promise).
 // RTK-Query mutation triggers are synchronous calls that return { unwrap: () => Promise }.
@@ -37,26 +32,6 @@ vi.mock("@/store/api/propertiesApi", () => ({
   ],
   useUpdatePropertyMutation: () => [
     mockUpdatePropertyMutationFn,
-    { isLoading: false },
-  ],
-  useAppendPropertyImagesMutation: () => [
-    mockAppendPropertyImagesMutationFn,
-    { isLoading: false },
-  ],
-  useReplacePropertyImagesMutation: () => [
-    mockReplacePropertyImagesMutationFn,
-    { isLoading: false },
-  ],
-  useAddPropertyVideoMutation: () => [
-    mockAddPropertyVideoMutationFn,
-    { isLoading: false },
-  ],
-  useReplacePropertyVideoMutation: () => [
-    mockReplacePropertyVideoMutationFn,
-    { isLoading: false },
-  ],
-  useDeletePropertyVideoMutation: () => [
-    mockDeletePropertyVideoMutationFn,
     { isLoading: false },
   ],
 }));
@@ -79,23 +54,12 @@ const baseForm: PropertyFormState = {
   showPrice: true,
 };
 
-const makeImageFile = (name = "photo.jpg") =>
-  new File(["img-data"], name, { type: "image/jpeg" });
-
-const makeVideoFile = (name = "tour.mp4") =>
-  new File(["vid-data"], name, { type: "video/mp4" });
-
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
   vi.clearAllMocks();
   makeUnwrappable(mockCreatePropertyMutationFn, { _id: "new-id-123", id: "new-id-123" });
   makeUnwrappable(mockUpdatePropertyMutationFn, { _id: "existing-id", id: "existing-id" });
-  makeUnwrappable(mockAppendPropertyImagesMutationFn, {});
-  makeUnwrappable(mockReplacePropertyImagesMutationFn, {});
-  makeUnwrappable(mockAddPropertyVideoMutationFn, {});
-  makeUnwrappable(mockReplacePropertyVideoMutationFn, {});
-  makeUnwrappable(mockDeletePropertyVideoMutationFn, {});
 });
 
 // ── Case 1: Create scalar only ────────────────────────────────────────────────
@@ -136,131 +100,133 @@ describe("Case 1 — Create scalar only", () => {
   });
 });
 
-// ── Case 2: Create with images ────────────────────────────────────────────────
+// ── Case 2: Create with image URLs ───────────────────────────────────────────
 /**
- * Validates: Requirements 1.2
+ * Validates: Requirements 2.3
  *
- * Expected (fixed): appendPropertyImages mutation is called with the image file
- *   after the scalar create succeeds.
+ * Expected (fixed): createProperty mutation receives a plain JSON object with
+ *   images as a string array of pre-resolved Cloudinary URLs.
  *
- * Bug (unfixed): images are bundled into the single FormData create request;
- *   no separate call to POST /:id/images is made.
+ * Bug (unfixed): images are bundled into the single FormData create request
+ *   as raw File objects.
  */
-describe("Case 2 — Create with images", () => {
-  it("appendPropertyImages mutation is called with the image file after scalar create", async () => {
-    const imageFile = makeImageFile();
+describe("Case 2 — Create with image URLs", () => {
+  it("createProperty mutation receives images as string array (not File objects)", async () => {
+    const imageUrl = "https://cdn.example.com/img.jpg";
     const { result } = renderHook(() => useAdminActions());
 
     await act(async () => {
-      await result.current.createProperty(baseForm, [imageFile], null);
+      await result.current.createProperty(baseForm, [imageUrl], null);
     });
 
-    // The images mutation must have been called
-    expect(mockAppendPropertyImagesMutationFn).toHaveBeenCalledTimes(1);
+    expect(mockCreatePropertyMutationFn).toHaveBeenCalledTimes(1);
 
-    const imagesArg = mockAppendPropertyImagesMutationFn.mock.calls[0][0];
+    const receivedArg = mockCreatePropertyMutationFn.mock.calls[0][0];
 
-    // The argument must contain the image file
-    const body: FormData = imagesArg.data ?? imagesArg;
-    const hasFile =
-      body instanceof FormData
-        ? body.get("images") === imageFile || [...(body.getAll("images"))].includes(imageFile)
-        : imagesArg.images === imageFile || (Array.isArray(imagesArg.images) && imagesArg.images.includes(imageFile));
+    // Must NOT be FormData
+    expect(receivedArg).not.toBeInstanceOf(FormData);
 
-    expect(hasFile).toBe(true);
+    // images must be a string array
+    expect(Array.isArray(receivedArg.images)).toBe(true);
+    expect(receivedArg.images).toEqual([imageUrl]);
+
+    // No File objects in images
+    receivedArg.images.forEach((img: unknown) => {
+      expect(typeof img).toBe("string");
+    });
   });
 });
 
-// ── Case 3: Create with video ─────────────────────────────────────────────────
+// ── Case 3: Create with video URL ─────────────────────────────────────────────
 /**
- * Validates: Requirements 1.3
+ * Validates: Requirements 2.3
  *
- * Expected (fixed): addPropertyVideo mutation is called after the scalar create.
+ * Expected (fixed): createProperty mutation receives video as a string URL.
  *
- * Bug (unfixed): video is bundled into the single FormData create request;
- *   no separate call to POST /:id/video is made.
+ * Bug (unfixed): video is bundled into the single FormData create request
+ *   as a raw File object.
  */
-describe("Case 3 — Create with video", () => {
-  it("addPropertyVideo mutation is called after scalar create", async () => {
-    const videoFile = makeVideoFile();
+describe("Case 3 — Create with video URL", () => {
+  it("createProperty mutation receives video as string URL (not File object)", async () => {
+    const videoUrl = "https://cdn.example.com/vid.mp4";
     const { result } = renderHook(() => useAdminActions());
 
     await act(async () => {
-      await result.current.createProperty(baseForm, [], videoFile);
+      await result.current.createProperty(baseForm, [], videoUrl);
     });
 
-    expect(mockAddPropertyVideoMutationFn).toHaveBeenCalledTimes(1);
+    expect(mockCreatePropertyMutationFn).toHaveBeenCalledTimes(1);
+
+    const receivedArg = mockCreatePropertyMutationFn.mock.calls[0][0];
+
+    // Must NOT be FormData
+    expect(receivedArg).not.toBeInstanceOf(FormData);
+
+    // video must be a string URL
+    expect(typeof receivedArg.video).toBe("string");
+    expect(receivedArg.video).toBe(videoUrl);
   });
 });
 
-// ── Case 4: Edit — remove video ───────────────────────────────────────────────
+// ── Case 4: Update with image URLs ────────────────────────────────────────────
 /**
- * Validates: Requirements 1.7
+ * Validates: Requirements 2.6
  *
- * Expected (fixed): deletePropertyVideo mutation is called (not videoUrl: "" in body).
+ * Expected (fixed): updateProperty mutation receives images as a string array.
  *
- * Bug (unfixed): videoUrl: "" is appended to the FormData body; no DELETE call is made.
+ * Bug (unfixed): images are bundled into the FormData PUT body as raw File objects.
  */
-describe("Case 4 — Edit remove video", () => {
-  it("deletePropertyVideo mutation is called when videoRemoved=true (not videoUrl:'' in body)", async () => {
-    const existingImages = ["https://example.com/img1.jpg"];
-    const existingVideo = "https://example.com/video.mp4";
+describe("Case 4 — Update with image URLs", () => {
+  it("updateProperty mutation receives images as string array", async () => {
+    const imageUrl = "https://cdn.example.com/img.jpg";
     const { result } = renderHook(() => useAdminActions());
 
     await act(async () => {
-      await result.current.updateProperty(
-        "existing-id",
-        baseForm,
-        existingImages,
-        [],           // no new images
-        existingVideo,
-        null,         // no new video
-        true          // videoRemoved = true
-      );
+      await result.current.updateProperty("existing-id", baseForm, [imageUrl], null);
     });
 
-    // deletePropertyVideo must be called
-    expect(mockDeletePropertyVideoMutationFn).toHaveBeenCalledTimes(1);
+    expect(mockUpdatePropertyMutationFn).toHaveBeenCalledTimes(1);
 
-    // The scalar update body must NOT contain videoUrl: ""
-    const scalarArg = mockUpdatePropertyMutationFn.mock.calls[0][0];
-    const body = scalarArg?.data ?? scalarArg;
-    if (body instanceof FormData) {
-      expect(body.get("videoUrl")).not.toBe("");
-    } else {
-      expect(body).not.toHaveProperty("videoUrl");
-    }
+    const receivedArg = mockUpdatePropertyMutationFn.mock.calls[0][0];
+    const body = receivedArg?.data ?? receivedArg;
+
+    // Must NOT be FormData
+    expect(body).not.toBeInstanceOf(FormData);
+
+    // images must be a string array
+    expect(Array.isArray(body.images)).toBe(true);
+    expect(body.images).toEqual([imageUrl]);
   });
 });
 
-// ── Case 5: Edit — add images ─────────────────────────────────────────────────
+// ── Case 5: Update with video null ────────────────────────────────────────────
 /**
- * Validates: Requirements 1.5
+ * Validates: Requirements 2.6, 3.5
  *
- * Expected (fixed): replacePropertyImages mutation is called when new images are added.
+ * Expected (fixed): updateProperty mutation receives video: null in the JSON body.
  *
- * Bug (unfixed): new images are bundled into the scalar PUT FormData body;
- *   no separate call to PUT /:id/images is made.
+ * Bug (unfixed): videoUrl: "" is appended to the FormData body instead.
  */
-describe("Case 5 — Edit add images", () => {
-  it("replacePropertyImages mutation is called when new images are added", async () => {
-    const existingImages = ["https://example.com/img1.jpg"];
-    const newImg = makeImageFile("new-photo.jpg");
-    const existingVideo = "https://example.com/video.mp4";
+describe("Case 5 — Update with video null", () => {
+  it("updateProperty mutation receives video: null (not videoUrl: '' in FormData)", async () => {
     const { result } = renderHook(() => useAdminActions());
 
     await act(async () => {
-      await result.current.updateProperty(
-        "existing-id",
-        baseForm,
-        existingImages,
-        [newImg],     // new images added
-        existingVideo,
-        null,         // no new video
-        false         // videoRemoved = false
-      );
+      await result.current.updateProperty("existing-id", baseForm, [], null);
     });
 
-    expect(mockReplacePropertyImagesMutationFn).toHaveBeenCalledTimes(1);
+    expect(mockUpdatePropertyMutationFn).toHaveBeenCalledTimes(1);
+
+    const receivedArg = mockUpdatePropertyMutationFn.mock.calls[0][0];
+    const body = receivedArg?.data ?? receivedArg;
+
+    // Must NOT be FormData
+    expect(body).not.toBeInstanceOf(FormData);
+
+    // video must be null
+    expect(body.video).toBeNull();
+
+    // Must NOT have videoUrl field
+    expect(body).not.toHaveProperty("videoUrl");
   });
 });

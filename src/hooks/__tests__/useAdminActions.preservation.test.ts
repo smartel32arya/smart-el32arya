@@ -17,6 +17,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import * as fc from "fast-check";
 
+// Stub useDispatch so the hook does not need a Redux Provider
+vi.mock("react-redux", async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, useDispatch: () => vi.fn() };
+});
+
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
 const mockCreatePropertyMutationFn = vi.fn();
@@ -246,7 +252,7 @@ describe("Test 2 — Single fetch preservation (mapProperty)", () => {
           const raw = { _id, title: "Test", price: 100000 };
           const mapped = mapProperty(raw) as Record<string, unknown>;
           expect(mapped.id).toBe(_id);
-          expect(mapped._id).toBe(_id);
+          expect((mapped as Record<string, unknown>)._id).toBe(_id);
         }
       ),
       { numRuns: 500 }
@@ -331,11 +337,10 @@ describe("Test 3 — Delete preservation", () => {
 // Test 4 — Toast and navigation preservation (unit test)
 //
 // After a successful create/update, success toast and navigate("/admin/properties")
-// are called. On unfixed code, createProperty takes a FormData argument.
-// We test that the hook resolves/rejects correctly so the page component can
-// call toast + navigate.
+// are called. We test that the hook resolves/rejects correctly so the page component
+// can call toast + navigate.
 //
-// Validates: Requirements 3.4, 3.5
+// Validates: Requirements 3.1, 3.4, 3.5
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("Test 4 — Toast and navigation preservation", () => {
@@ -344,8 +349,6 @@ describe("Test 4 — Toast and navigation preservation", () => {
    *
    * createProperty must resolve (not throw) on success so the page component
    * can call toast.success and navigate("/admin/properties").
-   *
-   * On unfixed code: createProperty(fd: FormData) — we pass a FormData.
    */
   it("createProperty resolves successfully so page can call toast and navigate", async () => {
     const { result } = renderHook(() => useAdminActions());
@@ -355,9 +358,7 @@ describe("Test 4 — Toast and navigation preservation", () => {
 
     await act(async () => {
       try {
-        // Fixed signature: createProperty(form, images, video)
         await result.current.createProperty(baseForm, [], null);
-        // If we reach here, the hook resolved — page would call toast + navigate
         toastSuccessMock("تم نشر العقار بنجاح");
         navigateMock("/admin/properties");
       } catch {
@@ -374,8 +375,6 @@ describe("Test 4 — Toast and navigation preservation", () => {
    *
    * updateProperty must resolve (not throw) on success so the page component
    * can call toast.success and navigate("/admin/properties").
-   *
-   * On unfixed code: updateProperty(id: string, fd: FormData).
    */
   it("updateProperty resolves successfully so page can call toast and navigate", async () => {
     const { result } = renderHook(() => useAdminActions());
@@ -385,8 +384,8 @@ describe("Test 4 — Toast and navigation preservation", () => {
 
     await act(async () => {
       try {
-        // Fixed signature: updateProperty(id, form, existingImages, newImages, existingVideo, newVideo, videoRemoved)
-        await result.current.updateProperty("existing-id", baseForm, [], [], "", null, false);
+        // New signature: (id, form, images: string[], video: string | null)
+        await result.current.updateProperty("existing-id", baseForm, [], null);
         toastSuccessMock("تم حفظ التعديلات بنجاح");
         navigateMock("/admin/properties");
       } catch {
@@ -447,7 +446,7 @@ describe("Test 4 — Toast and navigation preservation", () => {
 
     await act(async () => {
       try {
-        await result.current.updateProperty("existing-id", baseForm, [], [], "", null, false);
+        await result.current.updateProperty("existing-id", baseForm, [], null);
       } catch (err) {
         caughtError = err;
         toastErrorMock("فشل حفظ التعديلات", err);
@@ -468,5 +467,15 @@ describe("Test 4 — Toast and navigation preservation", () => {
     const { result } = renderHook(() => useAdminActions());
     expect(typeof result.current.isCreating).toBe("boolean");
     expect(typeof result.current.isUpdating).toBe("boolean");
+  });
+
+  /**
+   * **Validates: Requirements 3.1**
+   *
+   * uploadProgress is no longer exposed — hook interface is clean.
+   */
+  it("hook does not expose uploadProgress (removed in refactor)", () => {
+    const { result } = renderHook(() => useAdminActions());
+    expect((result.current as Record<string, unknown>).uploadProgress).toBeUndefined();
   });
 });

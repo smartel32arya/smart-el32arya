@@ -3,9 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { AdminLayout } from "./Dashboard";
 import { useGetAdminPropertyByIdQuery } from "@/store/api/propertiesApi";
 import { useAdminActions } from "@/hooks/useAdminActions";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import { NEIGHBORHOODS, PROPERTY_TYPES, AMENITY_SUGGESTIONS } from "@/config";
 import CustomSelect from "@/components/CustomSelect";
-import { Star, Save, ArrowRight, Loader2, AlertCircle, X, Plus, Upload, Video } from "lucide-react";
+import { Star, Save, ArrowRight, Loader2, AlertCircle, X, Plus, Upload, Video, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 
@@ -19,8 +20,10 @@ const EditProperty = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: property, isLoading, isError } = useGetAdminPropertyByIdQuery(id ?? "");
-  const { updateProperty, isUpdating, isUploading, videoUploadProgress } = useAdminActions();
-  const isSaving = isUpdating || isUploading;
+  const { updateProperty, isUpdating } = useAdminActions();
+  const imageUpload = useFileUpload();
+  const videoUpload = useFileUpload();
+  const isSaving = isUpdating;
   const [amenityInput, setAmenityInput] = useState("");
 
   const [form, setForm] = useState({
@@ -29,19 +32,12 @@ const EditProperty = () => {
     amenities: [] as string[], featured: false, active: true, showPrice: true,
   });
 
-  // Images state: existing URLs + new File uploads
+  // Existing media state (unchanged)
   const [existingImages, setExistingImages] = useState<string[]>([]);
-  const [newImages, setNewImages] = useState<File[]>([]);
-  const [newPreviews, setNewPreviews] = useState<string[]>([]);
   const [dragActive, setDragActive] = useState(false);
-
-  // Video state
   const [existingVideo, setExistingVideo] = useState<string>("");
-  const [newVideo, setNewVideo] = useState<File | null>(null);
   const [dragVideoActive, setDragVideoActive] = useState(false);
   const [videoRemoved, setVideoRemoved] = useState(false);
-
-  // Images modification tracking
   const [existingImagesModified, setExistingImagesModified] = useState(false);
 
   useEffect(() => {
@@ -49,10 +45,10 @@ const EditProperty = () => {
       setForm({
         title: property.title,
         description: property.description,
-        price: String(property.price),
+        price: property.price != null ? String(property.price) : "",
         neighborhood: property.neighborhood,
         type: property.type,
-        area: String(property.area),
+        area: property.area != null ? String(property.area) : "",
         listingType: (property.listingType ?? "sale") as "sale" | "rent",
         amenities: [...property.amenities],
         featured: property.featured,
@@ -90,17 +86,10 @@ const EditProperty = () => {
       active: form.active,
       showPrice: form.showPrice,
     };
+    const finalImages = [...existingImages, ...imageUpload.urls];
+    const finalVideo = videoUpload.urls[0] ?? (videoRemoved ? null : existingVideo || null);
     try {
-      await updateProperty(
-        id!,
-        formFields,
-        existingImages,
-        newImages,
-        existingVideo,
-        newVideo,
-        videoRemoved,
-        existingImagesModified
-      );
+      await updateProperty(id!, formFields, finalImages, finalVideo);
       toast.success("تم حفظ التعديلات بنجاح", {
         description: `تم تحديث بيانات "${form.title}"`,
         duration: 4000,
@@ -118,13 +107,8 @@ const EditProperty = () => {
   const propertyTypes = PROPERTY_TYPES.filter((t) => t !== "الكل");
 
   const handleNewImages = (files: File[]) => {
-    const imgs = files.filter((f) => f.type.startsWith("image/"));
-    setNewImages((prev) => [...prev, ...imgs]);
-    imgs.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => setNewPreviews((p) => [...p, reader.result as string]);
-      reader.readAsDataURL(file);
-    });
+    imageUpload.addFiles(files, "image");
+    setExistingImagesModified(true);
   };
 
   const removeExisting = (i: number) => {
@@ -132,10 +116,7 @@ const EditProperty = () => {
     setExistingImagesModified(true);
   };
 
-  const removeNew = (i: number) => {
-    setNewImages((prev) => prev.filter((_, idx) => idx !== i));
-    setNewPreviews((prev) => prev.filter((_, idx) => idx !== i));
-  };
+  const isSubmitDisabled = isSaving || imageUpload.isAnyUploading || videoUpload.isAnyUploading;
 
   return (
     <AdminLayout>
@@ -368,7 +349,7 @@ const EditProperty = () => {
                   </div>
                 )}
 
-                {/* Upload new */}
+                {/* Upload new images */}
                 <p className={labelClass}>إضافة صور جديدة</p>
                 <div
                   onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
@@ -387,26 +368,70 @@ const EditProperty = () => {
                       <Upload className="w-6 h-6 text-white" />
                     </div>
                     <p className="font-bold text-foreground text-sm">اسحب الصور أو انقر للاختيار</p>
-                    <p className="text-xs text-muted-foreground">PNG, JPG, WEBP</p>
+                    <p className="text-xs text-muted-foreground">PNG, JPG, WEBP — حتى 5MB لكل صورة</p>
                   </label>
                 </div>
 
-                {/* New previews */}
-                {newPreviews.length > 0 && (
+                {/* Per-file new image UI */}
+                {imageUpload.items.length > 0 && (
                   <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {newPreviews.map((src, i) => (
-                      <div key={i} className="relative group rounded-xl overflow-hidden border-2 border-gold/40">
-                        <img src={src} alt="" className="w-full h-28 object-cover" />
-                        <span className="absolute top-2 right-2 bg-gold/80 text-white text-xs font-bold px-2 py-0.5 rounded-full">جديدة</span>
-                        <button
-                          type="button"
-                          onClick={() => removeNew(i)}
-                          className="absolute top-2 left-2 bg-destructive text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
+                    {imageUpload.items.map((item) => {
+                      const previewUrl = item.status === "done" && item.url
+                        ? item.url
+                        : URL.createObjectURL(item.file);
+                      return (
+                        <div key={item.id} className="relative group rounded-xl overflow-hidden border-2 border-gold/40 aspect-square">
+                          <img src={previewUrl} alt="" className="w-full h-full object-cover" />
+
+                          {/* Uploading overlay */}
+                          {item.status === "uploading" && (
+                            <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-1">
+                              <Loader2 className="w-6 h-6 text-white animate-spin" />
+                              <span className="text-white text-[10px] font-bold">{item.progress}%</span>
+                            </div>
+                          )}
+
+                          {/* Error overlay */}
+                          {item.status === "error" && (
+                            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1 p-1">
+                              <p className="text-white text-[9px] text-center leading-tight line-clamp-2">{item.error}</p>
+                              <div className="flex gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => imageUpload.retryItem(item.id)}
+                                  className="bg-blue-500 text-white p-1 rounded-full"
+                                  title="إعادة المحاولة"
+                                >
+                                  <RefreshCw className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => imageUpload.removeItem(item.id)}
+                                  className="bg-destructive text-white p-1 rounded-full"
+                                  title="حذف"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Done badge */}
+                          {item.status === "done" && (
+                            <>
+                              <span className="absolute top-2 right-2 bg-gold/80 text-white text-xs font-bold px-2 py-0.5 rounded-full">جديدة</span>
+                              <button
+                                type="button"
+                                onClick={() => imageUpload.removeItem(item.id)}
+                                className="absolute top-2 left-2 bg-destructive text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </Card>
@@ -418,8 +443,8 @@ const EditProperty = () => {
                   فيديو العقار <span className="text-muted-foreground font-normal text-sm">(اختياري — فيديو واحد فقط)</span>
                 </h3>
 
-                {/* Existing video */}
-                {existingVideo && !newVideo && (
+                {/* Existing video — shown only when no new video item added yet */}
+                {existingVideo && videoUpload.items.length === 0 && (
                   <div className="mb-4">
                     <p className={labelClass}>الفيديو الحالي</p>
                     <div className="flex items-center justify-between bg-secondary rounded-xl px-4 py-3 border border-border">
@@ -440,43 +465,62 @@ const EditProperty = () => {
                   </div>
                 )}
 
-                {/* New video */}
-                {newVideo ? (
-                  <div className="rounded-xl border border-gold/40 bg-secondary overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
-                          {isUploading && videoUploadProgress !== null
-                            ? <Loader2 className="w-5 h-5 text-white animate-spin" />
-                            : <Video className="w-5 h-5 text-white" />
-                          }
+                {/* Per-file new video UI */}
+                {videoUpload.items.length > 0 ? (
+                  videoUpload.items.map((item) => (
+                    <div key={item.id} className="rounded-xl border border-blue-200 bg-blue-50 overflow-hidden mb-4">
+                      <div className="flex items-center justify-between px-4 py-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
+                            {item.status === "uploading"
+                              ? <Loader2 className="w-4 h-4 text-white animate-spin" />
+                              : <Video className="w-4 h-4 text-white" />
+                            }
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-foreground truncate">{item.file.name}</p>
+                            {item.status === "uploading" && (
+                              <>
+                                <p className="text-xs text-blue-600 font-medium">جاري الرفع... {item.progress}%</p>
+                                <div className="w-full bg-blue-100 rounded-full h-1.5 mt-1">
+                                  <div
+                                    className="bg-blue-500 h-1.5 rounded-full transition-all duration-200"
+                                    style={{ width: `${item.progress}%` }}
+                                  />
+                                </div>
+                              </>
+                            )}
+                            {item.status === "done" && (
+                              <p className="text-xs text-green-600 font-medium">تم الرفع بنجاح</p>
+                            )}
+                            {item.status === "error" && (
+                              <p className="text-xs text-destructive font-medium">{item.error}</p>
+                            )}
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-foreground truncate">{newVideo.name}</p>
-                          {isUploading && videoUploadProgress !== null
-                            ? <p className="text-xs text-blue-600 font-medium">جاري الرفع... {videoUploadProgress}%</p>
-                            : <p className="text-xs text-muted-foreground">فيديو جديد</p>
-                          }
+                        <div className="flex items-center gap-1 shrink-0">
+                          {item.status === "error" && (
+                            <button
+                              type="button"
+                              onClick={() => videoUpload.retryItem(item.id)}
+                              className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors"
+                              title="إعادة المحاولة"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={item.status === "uploading"}
+                            onClick={() => videoUpload.removeItem(item.id)}
+                            className="p-1.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        disabled={isSaving}
-                        onClick={() => setNewVideo(null)}
-                        className="p-1.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0 disabled:opacity-40 disabled:pointer-events-none"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
                     </div>
-                    {isUploading && videoUploadProgress !== null && (
-                      <div className="h-1.5 bg-blue-100">
-                        <div
-                          className="h-1.5 bg-blue-500 transition-all duration-300"
-                          style={{ width: `${videoUploadProgress}%` }}
-                        />
-                      </div>
-                    )}
-                  </div>
+                  ))
                 ) : (
                   <div
                     onDragEnter={(e) => { e.preventDefault(); setDragVideoActive(true); }}
@@ -485,14 +529,14 @@ const EditProperty = () => {
                     onDrop={(e) => {
                       e.preventDefault(); setDragVideoActive(false);
                       const file = Array.from(e.dataTransfer.files).find((f) => f.type.startsWith("video/"));
-                      if (file) setNewVideo(file);
+                      if (file) videoUpload.addFiles([file], "video");
                     }}
                     className={`border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer ${
                       dragVideoActive ? "border-gold bg-gold/5" : "border-border hover:border-gold/50 hover:bg-secondary/50"
                     }`}
                   >
                     <input type="file" id="video-upload-edit" accept="video/*"
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) setNewVideo(f); }}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) videoUpload.addFiles([f], "video"); }}
                       className="hidden" />
                     <label htmlFor="video-upload-edit" className="cursor-pointer flex flex-col items-center gap-3">
                       <div className="w-16 h-16 rounded-2xl bg-blue-500 flex items-center justify-center shadow-lg">
@@ -501,34 +545,21 @@ const EditProperty = () => {
                       <p className="font-bold text-foreground">
                         {existingVideo ? "استبدال الفيديو الحالي" : "اسحب الفيديو هنا أو انقر للاختيار"}
                       </p>
-                      <p className="text-sm text-muted-foreground">MP4, MOV, AVI — فيديو واحد فقط</p>
+                      <p className="text-sm text-muted-foreground">MP4, MOV, AVI, WebM — فيديو واحد فقط</p>
                     </label>
                   </div>
                 )}
               </Card>
 
-              {videoUploadProgress !== null && (
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-blue-600">جاري رفع الفيديو...</span>
-                    <span className="text-xs font-bold text-blue-600">{videoUploadProgress}%</span>
-                  </div>
-                  <div className="w-full bg-blue-100 rounded-full h-2">
-                    <div
-                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${videoUploadProgress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-              <button type="submit" disabled={isSaving}
+              <button type="submit" disabled={isSubmitDisabled}
                 className="w-full gradient-gold text-white font-black text-lg py-5 rounded-2xl shadow-xl hover:opacity-90 transition-all flex items-center justify-center gap-3 disabled:opacity-70">
-                {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                {isUploading && videoUploadProgress === null
-                  ? "جاري رفع الصور..."
-                  : isUploading
-                  ? `جاري رفع الفيديو... ${videoUploadProgress}%`
-                  : isUpdating
+                {(isSaving || imageUpload.isAnyUploading || videoUpload.isAnyUploading)
+                  ? <Loader2 className="w-5 h-5 animate-spin" />
+                  : <Save className="w-5 h-5" />
+                }
+                {imageUpload.isAnyUploading || videoUpload.isAnyUploading
+                  ? "جاري رفع الملفات..."
+                  : isSaving
                   ? "جاري الحفظ..."
                   : "حفظ التعديلات"}
               </button>
