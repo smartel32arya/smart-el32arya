@@ -24,7 +24,7 @@ const EditProperty = () => {
 
   const [form, setForm] = useState({
     title: "", description: "", price: "", neighborhood: "",
-    type: "", area: "", bedrooms: "", bathrooms: "",
+    type: "", area: "", listingType: "sale" as "sale" | "rent",
     amenities: [] as string[], featured: false, active: true, showPrice: true,
   });
 
@@ -48,8 +48,7 @@ const EditProperty = () => {
         neighborhood: property.neighborhood,
         type: property.type,
         area: String(property.area),
-        bedrooms: String(property.bedrooms),
-        bathrooms: String(property.bathrooms),
+        listingType: (property.listingType ?? "sale") as "sale" | "rent",
         amenities: [...property.amenities],
         featured: property.featured,
         active: property.active ?? true,
@@ -73,14 +72,6 @@ const EditProperty = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (Number(form.price) < 55000) return;
-    if (Number(form.bedrooms) > 10) {
-      toast.error("عدد غرف النوم لا يمكن أن يتجاوز ١٠ غرف");
-      return;
-    }
-    if (Number(form.bathrooms) > 6) {
-      toast.error("عدد الحمامات لا يمكن أن يتجاوز ٦ حمامات");
-      return;
-    }
     const fd = buildUpdateFormData(
       {
         title: form.title,
@@ -89,8 +80,7 @@ const EditProperty = () => {
         neighborhood: form.neighborhood,
         type: form.type,
         area: form.area,
-        bedrooms: form.bedrooms,
-        bathrooms: form.bathrooms,
+        listingType: form.listingType,
         amenities: form.amenities,
         featured: form.featured,
         active: form.active,
@@ -240,18 +230,25 @@ const EditProperty = () => {
                 <h3 className="font-black text-lg text-foreground mb-5 flex items-center gap-2">
                   <span className="w-1 h-6 gradient-gold rounded-full inline-block" />المواصفات
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
-                    <label className={labelClass}>المساحة (م²)</label>
+                    <label className={labelClass}>المساحة (م²) <span className="text-muted-foreground font-normal">(اختياري)</span></label>
                     <input type="number" value={form.area} onChange={(e) => set("area", e.target.value)} min="1" className={inputClass} />
                   </div>
                   <div>
-                    <label className={labelClass}>غرف النوم</label>
-                    <input type="number" value={form.bedrooms} onChange={(e) => set("bedrooms", e.target.value)} min="0" className={inputClass} />
-                  </div>
-                  <div>
-                    <label className={labelClass}>الحمامات</label>
-                    <input type="number" value={form.bathrooms} onChange={(e) => set("bathrooms", e.target.value)} min="1" className={inputClass} />
+                    <label className={labelClass}>نوع العرض</label>
+                    <div className="flex gap-3 mt-1">
+                      {(["sale", "rent"] as const).map((t) => (
+                        <button key={t} type="button" onClick={() => set("listingType", t)}
+                          className={`flex-1 py-3 rounded-xl font-bold text-sm border-2 transition-all ${
+                            form.listingType === t
+                              ? t === "rent" ? "bg-blue-500 text-white border-transparent shadow-md" : "bg-green-500 text-white border-transparent shadow-md"
+                              : "bg-secondary text-foreground border-border hover:border-gold/50"
+                          }`}>
+                          {t === "rent" ? "للإيجار" : "للبيع"}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </Card>

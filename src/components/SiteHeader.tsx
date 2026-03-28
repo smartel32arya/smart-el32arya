@@ -8,7 +8,6 @@ import logo from "@/assets/logo.png";
 const navLinks = [
   { label: "الرئيسية", href: "/", isRoute: true },
   { label: "العقارات", href: "/properties", isRoute: true },
-  { label: "اتصل بنا", href: "/contact", isRoute: true },
 ];
 
 const SiteHeader = () => {

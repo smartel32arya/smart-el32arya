@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { WHATSAPP_NUMBER, WHATSAPP_URL } from "@/config";
+import { WHATSAPP_NUMBER, normalizeEgPhone } from "@/config";
 import type { Property } from "@/data/properties";
 
 interface UseContactFormReturn {
@@ -15,7 +15,7 @@ export function useContactForm(property: Property): UseContactFormReturn {
   const [msgText, setMsgText] = useState("");
 
   const url = useMemo(() => {
-    const phone = property.contactPhone ?? WHATSAPP_NUMBER;
+    const phone = normalizeEgPhone(property.contactPhone);
     const message = [
       `مرحباً، أنا ${name || "مهتم"}`,
       `أود الاستفسار عن: ${property.title}`,

@@ -126,10 +126,10 @@ const Profile = () => {
 
   return (
     <AdminLayout>
-      <div className="max-w-2xl" dir="rtl">
-        <div className="mb-8">
-          <h2 className="text-2xl md:text-3xl font-black text-foreground">الملف الشخصي</h2>
-          <p className="text-muted-foreground mt-1">عرض وتعديل بيانات حسابك</p>
+      <div className="max-w-2xl w-full" dir="rtl">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-black text-foreground">الملف الشخصي</h2>
+          <p className="text-muted-foreground text-sm mt-1">عرض وتعديل بيانات حسابك</p>
         </div>
 
         {loadError && (
@@ -140,14 +140,14 @@ const Profile = () => {
 
         {/* Info card */}
         {profile && (
-          <div className="bg-white rounded-2xl border border-border p-6 shadow-sm mb-6">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-14 h-14 rounded-2xl gradient-gold flex items-center justify-center text-white font-black text-2xl shrink-0">
+          <div className="bg-white rounded-2xl border border-border p-4 sm:p-6 shadow-sm mb-5">
+            <div className="flex items-center gap-3 sm:gap-4 mb-5">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl gradient-gold flex items-center justify-center text-white font-black text-xl sm:text-2xl shrink-0">
                 {profile.name?.charAt(0) ?? "؟"}
               </div>
-              <div>
-                <p className="font-black text-foreground text-lg">{profile.name}</p>
-                <p className="text-muted-foreground text-sm" dir="ltr">@{profile.username}</p>
+              <div className="min-w-0">
+                <p className="font-black text-foreground text-base sm:text-lg truncate">{profile.name}</p>
+                <p className="text-muted-foreground text-xs sm:text-sm" dir="ltr">@{profile.username}</p>
                 <span className="inline-block mt-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-gold/10 text-gold border border-gold/30">
                   {ROLE_LABELS[profile.role] ?? profile.role}
                 </span>
@@ -178,8 +178,8 @@ const Profile = () => {
         )}
 
         {/* Edit info */}
-        <div className="bg-white rounded-2xl border border-border p-6 shadow-sm mb-6">
-          <h3 className="font-black text-foreground mb-5 flex items-center gap-2">
+        <div className="bg-white rounded-2xl border border-border p-4 sm:p-6 shadow-sm mb-5">
+          <h3 className="font-black text-foreground mb-4 sm:mb-5 flex items-center gap-2">
             <User className="w-5 h-5 text-gold" />
             تعديل البيانات
           </h3>
@@ -214,7 +214,7 @@ const Profile = () => {
             <button
               type="submit"
               disabled={savingInfo}
-              className="gradient-gold text-white font-bold px-6 py-2.5 rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-70"
+              className="w-full sm:w-auto gradient-gold text-white font-bold px-6 py-2.5 rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-70"
             >
               {savingInfo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               حفظ
@@ -223,8 +223,8 @@ const Profile = () => {
         </div>
 
         {/* Change password */}
-        <div className="bg-white rounded-2xl border border-border p-6 shadow-sm">
-          <h3 className="font-black text-foreground mb-5 flex items-center gap-2">
+        <div className="bg-white rounded-2xl border border-border p-4 sm:p-6 shadow-sm">
+          <h3 className="font-black text-foreground mb-4 sm:mb-5 flex items-center gap-2">
             <Lock className="w-5 h-5 text-gold" />
             تغيير كلمة المرور
           </h3>
@@ -274,7 +274,7 @@ const Profile = () => {
             <button
               type="submit"
               disabled={savingPw}
-              className="gradient-gold text-white font-bold px-6 py-2.5 rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-70"
+              className="w-full sm:w-auto gradient-gold text-white font-bold px-6 py-2.5 rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-70"
             >
               {savingPw ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
               تغيير كلمة المرور

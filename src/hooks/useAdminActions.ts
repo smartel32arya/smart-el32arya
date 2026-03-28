@@ -10,8 +10,7 @@ export interface PropertyFormState {
   neighborhood: string;
   type: string;
   area: string;
-  bedrooms: string;
-  bathrooms: string;
+  listingType: "sale" | "rent";
   amenities: string[];
   featured: boolean;
   active: boolean;
@@ -39,9 +38,8 @@ function appendCommonFields(fd: FormData, form: PropertyFormState): void {
   fd.append("price", form.price);
   fd.append("neighborhood", form.neighborhood);
   fd.append("type", form.type);
-  fd.append("area", form.area);
-  fd.append("bedrooms", form.bedrooms);
-  fd.append("bathrooms", form.bathrooms);
+  fd.append("listingType", form.listingType);
+  if (form.area) fd.append("area", form.area);
   fd.append("location", "المنيا الجديدة");
   fd.append("featured", String(form.featured));
   fd.append("active", String(form.active));

@@ -11,9 +11,8 @@ export interface Property {
   location: string;
   neighborhood: string;
   type: string;
-  bedrooms: number;
-  bathrooms: number;
-  area: number;
+  listingType: "sale" | "rent";
+  area: number | null;
   image: string;
   images: string[];
   video: string | null;

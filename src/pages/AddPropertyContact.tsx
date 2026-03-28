@@ -1,64 +1,155 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { Phone, MessageCircle, Lock } from "lucide-react";
-import { WHATSAPP_DISPLAY, WORKING_DAYS, WHATSAPP_URL, SITE_NAME } from "@/config";
+import { Building2, Lock, User, Eye, EyeOff, MessageCircle } from "lucide-react";
+import { SITE_NAME, WHATSAPP_URL } from "@/config";
+import { useAppDispatch } from "@/store/hooks";
+import { propertiesApi } from "@/store/api/propertiesApi";
+import { usersApi } from "@/store/api/usersApi";
+
+const inputClass =
+  "w-full bg-secondary text-foreground rounded-xl px-5 h-[54px] border-2 border-border focus:ring-2 focus:ring-gold/30 focus:border-gold outline-none transition-all text-base";
 
 const AddPropertyContact = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const [formData, setFormData] = useState({ username: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message || "اسم المستخدم أو كلمة المرور غير صحيحة");
+        setLoading(false);
+        return;
+      }
+      localStorage.setItem("adminToken", data.token);
+      localStorage.setItem("adminUser", JSON.stringify(data.user));
+      dispatch(propertiesApi.util.resetApiState());
+      dispatch(usersApi.util.resetApiState());
+      navigate("/admin/add-property");
+    } catch {
+      setError("تعذّر الاتصال بالخادم، حاول مجدداً");
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background" dir="rtl">
       <SiteHeader />
 
       <main className="flex-1 flex items-center justify-center py-12 px-4">
-        <div className="max-w-lg w-full">
-          <div className="bg-white rounded-3xl shadow-xl border border-border p-8 md:p-10 text-center">
-            {/* Icon */}
-            <div className="w-20 h-20 mx-auto rounded-2xl gradient-gold flex items-center justify-center mb-6 shadow-xl">
-              <MessageCircle className="w-10 h-10 text-white" />
+        <div className="max-w-md w-full space-y-4">
+
+          {/* Login card */}
+          <div className="bg-white rounded-3xl shadow-xl border border-border p-8 md:p-10">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 mx-auto rounded-2xl gradient-gold flex items-center justify-center mb-4 shadow-lg">
+                <Building2 className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-2xl font-black text-foreground mb-1">أضف عقارك</h1>
+              <p className="text-muted-foreground text-sm">سجّل دخولك للبدء في إضافة عقارك</p>
             </div>
 
-            <h1 className="text-2xl md:text-3xl font-black text-foreground mb-3">
-              هل تريد إضافة عقارك؟
-            </h1>
-            <p className="text-muted-foreground mb-8 leading-relaxed text-sm md:text-base">
-              للإعلان عن عقارك على منصتنا، تواصل معنا مباشرة عبر واتساب وسيقوم فريقنا بمساعدتك في نشر عقارك
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="bg-destructive/10 text-destructive text-sm font-semibold px-4 py-3 rounded-xl text-center">
+                  {error}
+                </div>
+              )}
+
+              <div>
+                <label className="text-sm font-bold text-foreground mb-2 block">اسم المستخدم</label>
+                <div className="relative">
+                  <User className="absolute end-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleChange}
+                    placeholder="أدخل اسم المستخدم"
+                    className={`${inputClass} pe-11`}
+                    required
+                    autoComplete="username"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-bold text-foreground mb-2 block">كلمة المرور</label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute end-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="أدخل كلمة المرور"
+                    className={`${inputClass} pe-11`}
+                    required
+                    autoComplete="current-password"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full gradient-gold text-white font-black text-base h-[54px] rounded-2xl shadow-lg hover:opacity-90 transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0 flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    تسجيل الدخول
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+
+          {/* No account card */}
+          <div className="bg-white rounded-2xl border border-border p-6 text-center shadow-sm">
+            <p className="text-sm font-bold text-foreground mb-1">مش عندك حساب؟</p>
+            <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+              تواصل مع إدارة الموقع وهنضيف عقارك نيابةً عنك
             </p>
-
-            {/* Contact info */}
-            <div className="bg-secondary rounded-2xl p-5 mb-6 flex items-center justify-center gap-3">
-              <Phone className="w-5 h-5 text-gold shrink-0" />
-              <span className="text-xl font-black text-foreground" dir="ltr">{WHATSAPP_DISPLAY}</span>
-            </div>
-            <p className="text-xs text-muted-foreground mb-8">{WORKING_DAYS}</p>
-
-            {/* WhatsApp CTA */}
             <a
               href={WHATSAPP_URL(`مرحباً، أريد إضافة عقار على منصة ${SITE_NAME}`)}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-3 w-full bg-[#25D366] hover:bg-[#1ebe5d] text-white font-black text-base h-[56px] rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 mb-4"
+              className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1ebe5d] text-white font-bold h-[46px] rounded-xl shadow transition-all text-sm"
             >
-              <MessageCircle className="w-6 h-6" />
-              تواصل معنا عبر واتساب
+              <MessageCircle className="w-4 h-4" />
+              تواصل مع الإدارة عبر واتساب
             </a>
-
-            {/* Admin login */}
-            <div className="pt-6 border-t border-border">
-              <button
-                onClick={() => navigate("/admin/login")}
-                className="flex items-center justify-center gap-2 w-full bg-secondary hover:bg-secondary/80 text-foreground font-bold h-[48px] rounded-xl border-2 border-border hover:border-gold/40 transition-all text-sm"
-              >
-                <Lock className="w-4 h-4" />
-                تسجيل دخول الإدارة
-              </button>
-            </div>
-
-            <p className="mt-6 text-xs text-muted-foreground">
-              💡 نراجع جميع العقارات قبل نشرها لضمان جودة المحتوى
-            </p>
           </div>
+
         </div>
       </main>
 

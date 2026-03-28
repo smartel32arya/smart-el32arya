@@ -10,7 +10,7 @@ import {
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { useGetPropertyByIdQuery } from "@/store/api/propertiesApi";
-import { WHATSAPP_NUMBER } from "@/config";
+import { WHATSAPP_NUMBER, normalizeEgPhone } from "@/config";
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 const Skeleton = ({ className }: { className?: string }) => (
@@ -108,7 +108,7 @@ const PropertyDetails = () => {
   }, [activeIndex]);
 
   // Use property's own contact number if available, fallback to site default
-  const contactNumber = property?.contactPhone || WHATSAPP_NUMBER;
+  const contactNumber = normalizeEgPhone(property?.contactPhone);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -413,23 +413,32 @@ const PropertyDetails = () => {
                 </div>
 
                 {/* Specs */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-5">
-                  {property.bedrooms > 0 && (
-                    <div className="bg-white rounded-2xl p-6 text-center border border-border shadow-md hover:shadow-lg transition-shadow">
-                      <BedDouble className="w-8 h-8 mx-auto text-gold mb-2" />
-                      <div className="text-foreground font-black text-2xl">{property.bedrooms}</div>
-                      <div className="text-muted-foreground text-sm font-semibold">غرف نوم</div>
+                <div className="bg-white rounded-2xl border border-border shadow-md overflow-hidden">
+                  <div className="grid grid-cols-2 divide-x divide-x-reverse divide-border">
+                    <div className="p-5 flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                        property.listingType === "rent" ? "bg-blue-500" : "bg-green-600"
+                      }`}>
+                        <span className="text-white text-base">{property.listingType === "rent" ? "🔑" : "🏷️"}</span>
+                      </div>
+                      <div>
+                        <p className={`font-black text-base leading-tight ${property.listingType === "rent" ? "text-blue-600" : "text-green-600"}`}>
+                          {property.listingType === "rent" ? "للإيجار" : "للبيع"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">نوع العرض</p>
+                      </div>
                     </div>
-                  )}
-                  <div className="bg-white rounded-2xl p-6 text-center border border-border shadow-md hover:shadow-lg transition-shadow">
-                    <Bath className="w-8 h-8 mx-auto text-gold mb-2" />
-                    <div className="text-foreground font-black text-2xl">{property.bathrooms}</div>
-                    <div className="text-muted-foreground text-sm font-semibold">حمامات</div>
-                  </div>
-                  <div className="bg-white rounded-2xl p-6 text-center border border-border shadow-md hover:shadow-lg transition-shadow">
-                    <Maximize className="w-8 h-8 mx-auto text-gold mb-2" />
-                    <div className="text-foreground font-black text-2xl">{property.area}</div>
-                    <div className="text-muted-foreground text-sm font-semibold">متر مربع</div>
+                    <div className="p-5 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl gradient-gold flex items-center justify-center shrink-0">
+                        <Maximize className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-black text-base text-foreground leading-tight">
+                          {property.area ? `${property.area} م²` : "—"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">المساحة</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

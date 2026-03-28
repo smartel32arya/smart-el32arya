@@ -11,8 +11,6 @@ export const WORKING_DAYS = "متاح ٢٤/٧ على مدار الأسبوع";
 // ─── Property Data ────────────────────────────────────────────────────────────
 export const NEIGHBORHOODS = [
   "الكل",
-  "حي الزهراء",
-  "حي القرنفل",
   "الحي الأول",
   "الحي الثاني",
   "الحي الثالث",
@@ -20,12 +18,23 @@ export const NEIGHBORHOODS = [
   "الحي الخامس",
   "الحي السادس",
   "الحي السابع",
+  "حي الزهراء",
+  "حي القرنفل",
   "بيت الوطن",
   "المتميز",
   "الأكثر تميزاً",
 ];
 
-export const PROPERTY_TYPES = ["الكل", "شقة", "فيلا", "مخازن", "محل تجاري", "مكتب إداري", "جراج", "قطع أرض"];
+export const PROPERTY_TYPES = [
+  "الكل",
+  "شقة",
+  "فيلا",
+  "قطع أرض",
+  "مخازن",
+  "محل تجاري",
+  "مكتب إداري",
+  "جراج",
+];
 
 export const PRICE_RANGES = [
   { label: "الكل", value: "all" },
@@ -44,10 +53,28 @@ export const SORT_OPTIONS = [
 ];
 
 export const AMENITY_SUGGESTIONS = [
-  "غاز طبيعي", "جراج", "أمن وحراسة", "مصعد", "مفروشة",
-  "تكييف", "خزان مياه", "خالصه الأقساط", "علي الطوب الاحمر", "تشطيب سوبر لوكس",
-  "إنترنت", "مدخل خاص", "دور أرضي بحديقة",
-  "إطلالة مميزة", "قريبة من المدارس", "قريبة من المواصلات", "غير مجروحه", "عليها أقساط", "موقع مميز", "اسانسير", "تشطيب جهاز", "تشطيب جمعية"
+  "غاز طبيعي",
+  "جراج",
+  "أمن وحراسة",
+  "مصعد",
+  "مفروشة",
+  "تكييف",
+  "خزان مياه",
+  "خالصه الأقساط",
+  "علي الطوب الاحمر",
+  "تشطيب سوبر لوكس",
+  "إنترنت",
+  "مدخل خاص",
+  "دور أرضي بحديقة",
+  "إطلالة مميزة",
+  "قريبة من المدارس",
+  "قريبة من المواصلات",
+  "غير مجروحه",
+  "عليها أقساط",
+  "موقع مميز",
+  "اسانسير",
+  "تشطيب جهاز",
+  "تشطيب جمعية",
 ];
 
 // ─── WhatsApp ─────────────────────────────────────────────────────────────────
@@ -56,6 +83,15 @@ export const WHATSAPP_DISPLAY = "+20 102 264 1599";
 export const WHATSAPP_URL = (message = "") =>
   `https://wa.me/${WHATSAPP_NUMBER}${message ? `?text=${encodeURIComponent(message)}` : ""}`;
 
+// Normalize any Egyptian phone number to international format (no +)
+// handles: 01xxxxxxxxx → 201xxxxxxxxx, 201xxxxxxxxx → 201xxxxxxxxx
+export const normalizeEgPhone = (phone?: string | null): string => {
+  if (!phone) return WHATSAPP_NUMBER;
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("20")) return digits;
+  if (digits.startsWith("0")) return "2" + digits;
+  return "20" + digits;
+};
 
 // ─── Phone Numbers ────────────────────────────────────────────────────────────
 export const PHONE_NUMBERS = [
