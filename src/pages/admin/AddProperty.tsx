@@ -88,7 +88,8 @@ const Toggle = ({
 
 const AddProperty = () => {
   const navigate = useNavigate();
-  const { buildCreateFormData, createProperty, isCreating: isSaving } = useAdminActions();
+  const { createProperty, isCreating, uploadProgress } = useAdminActions();
+  const isSaving = isCreating;
   const [formData, setFormData] = useState<PropertyFormData>({
     title: "", description: "", price: "", neighborhood: "",
     type: "", area: "", listingType: "sale",
@@ -141,25 +142,21 @@ const AddProperty = () => {
       setError("السعر يجب أن يكون أكبر من ٥٥,٠٠٠ ج.م");
       return;
     }
-    const fd = buildCreateFormData(
-      {
-        title: formData.title,
-        description: formData.description,
-        price: formData.price,
-        neighborhood: formData.neighborhood,
-        type: formData.type,
-        area: formData.area,
-        listingType: formData.listingType,
-        amenities: formData.amenities,
-        featured: formData.featured,
-        active: formData.active,
-        showPrice: formData.showPrice,
-      },
-      formData.images,
-      formData.videos[0] ?? null
-    );
+    const formFields = {
+      title: formData.title,
+      description: formData.description,
+      price: formData.price,
+      neighborhood: formData.neighborhood,
+      type: formData.type,
+      area: formData.area,
+      listingType: formData.listingType,
+      amenities: formData.amenities,
+      featured: formData.featured,
+      active: formData.active,
+      showPrice: formData.showPrice,
+    };
     try {
-      await createProperty(fd);
+      await createProperty(formFields, formData.images, formData.videos[0] ?? null);
       toast.success("تم نشر العقار بنجاح", {
         description: `"${formData.title}" أصبح متاحاً الآن للزوار`,
         duration: 4000,
@@ -481,16 +478,39 @@ const AddProperty = () => {
                   </label>
                 </div>
               ) : (
-                <div className="flex items-center justify-between bg-blue-50 rounded-xl px-4 py-3 border border-blue-200">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
-                      <Video className="w-4 h-4 text-white" />
+                <div className="rounded-xl border border-blue-200 bg-blue-50 overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
+                        {isUploading && videoUploadProgress !== null
+                          ? <Loader2 className="w-4 h-4 text-white animate-spin" />
+                          : <Video className="w-4 h-4 text-white" />
+                        }
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-foreground truncate">{videoNames[0]}</p>
+                        {isUploading && videoUploadProgress !== null && (
+                          <p className="text-xs text-blue-600 font-medium">جاري الرفع... {videoUploadProgress}%</p>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm font-bold text-foreground truncate">{videoNames[0]}</p>
+                    <button
+                      type="button"
+                      disabled={isSaving}
+                      onClick={() => { set("videos", []); setVideoNames([]); }}
+                      className="p-1.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0 disabled:opacity-40 disabled:pointer-events-none"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                  <button type="button" onClick={() => { set("videos", []); setVideoNames([]); }} className="p-1.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0">
-                    <X className="w-4 h-4" />
-                  </button>
+                  {isUploading && videoUploadProgress !== null && (
+                    <div className="h-1.5 bg-blue-100">
+                      <div
+                        className="h-1.5 bg-blue-500 transition-all duration-300"
+                        style={{ width: `${videoUploadProgress}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -521,13 +541,31 @@ const AddProperty = () => {
 
           {/* ── Submit ── */}
           <div className="sticky bottom-0 bg-background/90 backdrop-blur-md pt-3 pb-4 -mx-4 px-4 lg:-mx-8 lg:px-8 border-t border-border/50 mt-2">
+            {uploadProgress !== null && (
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-blue-600">جاري الرفع...</span>
+                  <span className="text-xs font-bold text-blue-600">{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-blue-100 rounded-full h-2">
+                  <div
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
             <button
               type="submit"
               disabled={isSaving}
               className="w-full gradient-gold text-white font-black text-base py-4 rounded-2xl shadow-lg hover:opacity-90 hover:shadow-xl transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-60 disabled:translate-y-0 min-h-[56px]"
             >
               {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-              {isSaving ? "جاري النشر..." : "نشر العقار"}
+              {isSaving && uploadProgress !== null
+                ? `جاري الرفع... ${uploadProgress}%`
+                : isSaving
+                ? "جاري الحفظ..."
+                : "نشر العقار"}
             </button>
           </div>
 

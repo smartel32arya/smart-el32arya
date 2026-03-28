@@ -19,7 +19,8 @@ const EditProperty = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: property, isLoading, isError } = useGetAdminPropertyByIdQuery(id ?? "");
-  const { buildUpdateFormData, updateProperty, isUpdating: isSaving } = useAdminActions();
+  const { updateProperty, isUpdating, isUploading, videoUploadProgress } = useAdminActions();
+  const isSaving = isUpdating || isUploading;
   const [amenityInput, setAmenityInput] = useState("");
 
   const [form, setForm] = useState({
@@ -38,6 +39,10 @@ const EditProperty = () => {
   const [existingVideo, setExistingVideo] = useState<string>("");
   const [newVideo, setNewVideo] = useState<File | null>(null);
   const [dragVideoActive, setDragVideoActive] = useState(false);
+  const [videoRemoved, setVideoRemoved] = useState(false);
+
+  // Images modification tracking
+  const [existingImagesModified, setExistingImagesModified] = useState(false);
 
   useEffect(() => {
     if (property) {
@@ -72,27 +77,30 @@ const EditProperty = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (Number(form.price) < 55000) return;
-    const fd = buildUpdateFormData(
-      {
-        title: form.title,
-        description: form.description,
-        price: form.price,
-        neighborhood: form.neighborhood,
-        type: form.type,
-        area: form.area,
-        listingType: form.listingType,
-        amenities: form.amenities,
-        featured: form.featured,
-        active: form.active,
-        showPrice: form.showPrice,
-      },
-      existingImages,
-      newImages,
-      existingVideo,
-      newVideo
-    );
+    const formFields = {
+      title: form.title,
+      description: form.description,
+      price: form.price,
+      neighborhood: form.neighborhood,
+      type: form.type,
+      area: form.area,
+      listingType: form.listingType,
+      amenities: form.amenities,
+      featured: form.featured,
+      active: form.active,
+      showPrice: form.showPrice,
+    };
     try {
-      await updateProperty(id!, fd);
+      await updateProperty(
+        id!,
+        formFields,
+        existingImages,
+        newImages,
+        existingVideo,
+        newVideo,
+        videoRemoved,
+        existingImagesModified
+      );
       toast.success("تم حفظ التعديلات بنجاح", {
         description: `تم تحديث بيانات "${form.title}"`,
         duration: 4000,
@@ -119,8 +127,10 @@ const EditProperty = () => {
     });
   };
 
-  const removeExisting = (i: number) =>
+  const removeExisting = (i: number) => {
     setExistingImages((prev) => prev.filter((_, idx) => idx !== i));
+    setExistingImagesModified(true);
+  };
 
   const removeNew = (i: number) => {
     setNewImages((prev) => prev.filter((_, idx) => idx !== i));
@@ -422,7 +432,7 @@ const EditProperty = () => {
                           عرض الفيديو الحالي
                         </a>
                       </div>
-                      <button type="button" onClick={() => setExistingVideo("")}
+                      <button type="button" onClick={() => { setExistingVideo(""); setVideoRemoved(true); }}
                         className="p-1.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0">
                         <X className="w-4 h-4" />
                       </button>
@@ -432,20 +442,40 @@ const EditProperty = () => {
 
                 {/* New video */}
                 {newVideo ? (
-                  <div className="flex items-center justify-between bg-secondary rounded-xl px-4 py-3 border border-gold/40">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
-                        <Video className="w-5 h-5 text-white" />
+                  <div className="rounded-xl border border-gold/40 bg-secondary overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
+                          {isUploading && videoUploadProgress !== null
+                            ? <Loader2 className="w-5 h-5 text-white animate-spin" />
+                            : <Video className="w-5 h-5 text-white" />
+                          }
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-foreground truncate">{newVideo.name}</p>
+                          {isUploading && videoUploadProgress !== null
+                            ? <p className="text-xs text-blue-600 font-medium">جاري الرفع... {videoUploadProgress}%</p>
+                            : <p className="text-xs text-muted-foreground">فيديو جديد</p>
+                          }
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-foreground truncate">{newVideo.name}</p>
-                        <p className="text-xs text-muted-foreground">فيديو جديد</p>
-                      </div>
+                      <button
+                        type="button"
+                        disabled={isSaving}
+                        onClick={() => setNewVideo(null)}
+                        className="p-1.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0 disabled:opacity-40 disabled:pointer-events-none"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button type="button" onClick={() => setNewVideo(null)}
-                      className="p-1.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0">
-                      <X className="w-4 h-4" />
-                    </button>
+                    {isUploading && videoUploadProgress !== null && (
+                      <div className="h-1.5 bg-blue-100">
+                        <div
+                          className="h-1.5 bg-blue-500 transition-all duration-300"
+                          style={{ width: `${videoUploadProgress}%` }}
+                        />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div
@@ -477,10 +507,30 @@ const EditProperty = () => {
                 )}
               </Card>
 
+              {videoUploadProgress !== null && (
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-blue-600">جاري رفع الفيديو...</span>
+                    <span className="text-xs font-bold text-blue-600">{videoUploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-blue-100 rounded-full h-2">
+                    <div
+                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${videoUploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
               <button type="submit" disabled={isSaving}
                 className="w-full gradient-gold text-white font-black text-lg py-5 rounded-2xl shadow-xl hover:opacity-90 transition-all flex items-center justify-center gap-3 disabled:opacity-70">
                 {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                حفظ التعديلات
+                {isUploading && videoUploadProgress === null
+                  ? "جاري رفع الصور..."
+                  : isUploading
+                  ? `جاري رفع الفيديو... ${videoUploadProgress}%`
+                  : isUpdating
+                  ? "جاري الحفظ..."
+                  : "حفظ التعديلات"}
               </button>
             </form>
           </>

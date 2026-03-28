@@ -112,17 +112,46 @@ export const propertiesApi = createApi({
     }),
 
     // PUT /admin/properties/:id
-    updateProperty: builder.mutation<Property, { id: string; data: FormData }>({
+    updateProperty: builder.mutation<Property, { id: string; data: object }>({
       query: ({ id, data }) => ({ url: `/admin/properties/${id}`, method: "PUT", body: data }),
       transformResponse: (raw: any) => mapProperty(raw),
       invalidatesTags: (_r, _e, { id }) => ["Property", { type: "Property", id }],
     }),
 
     // POST /admin/properties
-    createProperty: builder.mutation<Property, FormData>({
-      query: (formData) => ({ url: "/admin/properties", method: "POST", body: formData }),
+    createProperty: builder.mutation<Property, object>({
+      query: (body) => ({ url: "/admin/properties", method: "POST", body }),
       transformResponse: (raw: any) => mapProperty(raw),
       invalidatesTags: ["Property"],
+    }),
+
+    // POST /admin/properties/:id/images
+    appendPropertyImages: builder.mutation<Property, { id: string; data: FormData }>({
+      query: ({ id, data }) => ({ url: `/admin/properties/${id}/images`, method: "POST", body: data }),
+      transformResponse: (raw: any) => mapProperty(raw),
+    }),
+
+    // PUT /admin/properties/:id/images
+    replacePropertyImages: builder.mutation<Property, { id: string; data: FormData }>({
+      query: ({ id, data }) => ({ url: `/admin/properties/${id}/images`, method: "PUT", body: data }),
+      transformResponse: (raw: any) => mapProperty(raw),
+    }),
+
+    // POST /admin/properties/:id/video
+    addPropertyVideo: builder.mutation<Property, { id: string; data: FormData }>({
+      query: ({ id, data }) => ({ url: `/admin/properties/${id}/video`, method: "POST", body: data }),
+      transformResponse: (raw: any) => mapProperty(raw),
+    }),
+
+    // PUT /admin/properties/:id/video
+    replacePropertyVideo: builder.mutation<Property, { id: string; data: FormData }>({
+      query: ({ id, data }) => ({ url: `/admin/properties/${id}/video`, method: "PUT", body: data }),
+      transformResponse: (raw: any) => mapProperty(raw),
+    }),
+
+    // DELETE /admin/properties/:id/video
+    deletePropertyVideo: builder.mutation<void, { id: string }>({
+      query: ({ id }) => ({ url: `/admin/properties/${id}/video`, method: "DELETE" }),
     }),
 
   }),
@@ -137,4 +166,9 @@ export const {
   useDeletePropertyMutation,
   useUpdatePropertyMutation,
   useCreatePropertyMutation,
+  useAppendPropertyImagesMutation,
+  useReplacePropertyImagesMutation,
+  useAddPropertyVideoMutation,
+  useReplacePropertyVideoMutation,
+  useDeletePropertyVideoMutation,
 } = propertiesApi;
