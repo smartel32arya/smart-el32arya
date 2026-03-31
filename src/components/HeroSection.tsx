@@ -61,19 +61,19 @@ const HeroSection = () => {
         </div>
 
         <h1
-          className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black text-white mb-4 sm:mb-6 animate-fade-in-up leading-tight"
+          className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-white mb-4 sm:mb-6 animate-fade-in-up leading-tight"
           style={{ animationDelay: "0.1s" }}
         >
-          اعثر على عقارك المثالي
+          أكبر منصة عقارية
           <br />
-          <span className="text-gradient-gold">في المنيا الجديدة</span>
+          <span className="text-gradient-gold">في المنيا</span>
         </h1>
 
         <p
           className="text-white/90 text-base sm:text-lg md:text-xl lg:text-2xl max-w-3xl mx-auto mb-8 sm:mb-12 animate-fade-in-up font-medium"
           style={{ animationDelay: "0.2s" }}
         >
-          أكبر منصة عقارية في المنيا
+          بيع · شراء · إيجار · إدارة عقارات
         </p>
 
         {/* Search Bar */}

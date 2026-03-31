@@ -72,7 +72,7 @@ const EditProperty = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (Number(form.price) < 55000) return;
+    if (Number(form.price) < (form.listingType === "rent" ? 1000 : 55000)) return;
     const formFields = {
       title: form.title,
       description: form.description,
@@ -171,10 +171,12 @@ const EditProperty = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                 <Card>
                   <label className={labelClass}>السعر (جنيه مصري) <span className="text-destructive">*</span></label>
-                  <input type="number" value={form.price} onChange={(e) => set("price", e.target.value)} required min="55000"
-                    className={`${inputClass} ${form.price && Number(form.price) < 55000 ? "border-destructive focus:border-destructive" : ""}`} />
-                  {form.price && Number(form.price) < 55000 ? (
-                    <p className="text-destructive font-bold text-sm mt-2">أدخل سعر العقار الفعلي</p>
+                  <input type="number" value={form.price} onChange={(e) => set("price", e.target.value)} required min={form.listingType === "rent" ? "1000" : "55000"}
+                    className={`${inputClass} ${form.price && Number(form.price) < (form.listingType === "rent" ? 1000 : 55000) ? "border-destructive focus:border-destructive" : ""}`} />
+                  {form.price && Number(form.price) < (form.listingType === "rent" ? 1000 : 55000) ? (
+                    <p className="text-destructive font-bold text-sm mt-2">
+                      {"أدخل سعر العقار الفعلي"}
+                    </p>
                   ) : form.price ? (
                     <p className="text-gold font-bold text-sm mt-2">{Number(form.price).toLocaleString("ar-EG")} ج.م</p>
                   ) : null}

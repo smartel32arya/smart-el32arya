@@ -125,8 +125,8 @@ const AddProperty = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (Number(formData.price) < 55000) {
-      toast.error("السعر يجب أن يكون أكبر من ٥٥,٠٠٠ ج.م");
+    if (Number(formData.price) < (formData.listingType === "rent" ? 1000 : 55000)) {
+      toast.error(formData.listingType === "rent" ? "السعر يجب أن يكون أكبر من ١,٠٠٠ ج.م" : "السعر يجب أن يكون أكبر من ٥٥,٠٠٠ ج.م");
       return;
     }
     if (!formData.neighborhood.trim()) {
@@ -327,12 +327,14 @@ const AddProperty = () => {
                 value={formData.price}
                 onChange={(e) => set("price", e.target.value)}
                 required
-                min="55000"
-                placeholder="2,500,000"
-                className={`${inputClass} ${formData.price && Number(formData.price) < 55000 ? "border-destructive" : ""}`}
+                min={formData.listingType === "rent" ? "1000" : "55000"}
+                placeholder={formData.listingType === "rent" ? "5,000" : "2,500,000"}
+                className={`${inputClass} ${formData.price && Number(formData.price) < (formData.listingType === "rent" ? 1000 : 55000) ? "border-destructive" : ""}`}
               />
-              {formData.price && Number(formData.price) < 55000 ? (
-                <p className="text-destructive text-xs font-bold mt-1.5">أدخل سعر العقار الفعلي</p>
+              {formData.price && Number(formData.price) < (formData.listingType === "rent" ? 1000 : 55000) ? (
+                <p className="text-destructive text-xs font-bold mt-1.5">
+                  {"أدخل سعر العقار الفعلي"}
+                </p>
               ) : formData.price ? (
                 <p className="text-gold text-xs font-bold mt-1.5">{Number(formData.price).toLocaleString("ar-EG")} ج.م</p>
               ) : null}

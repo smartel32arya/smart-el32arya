@@ -5,7 +5,7 @@ import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 import {
   ArrowRight, MapPin, BedDouble, Bath, Maximize,
   MessageCircle, Send, CheckCircle2, AlertCircle, ArrowLeft,
-  Play, Image, ChevronLeft, ChevronRight, X, ZoomIn,
+  Play, Image, ChevronLeft, ChevronRight, X, ZoomIn, Share2, Check,
 } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
@@ -60,6 +60,32 @@ const PropertyDetails = () => {
   const { id } = useParams<{ id: string }>();
   const [name, setName] = useState("");
   const [msgText, setMsgText] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({ url }).catch(() => {});
+      return;
+    }
+    // clipboard fallback
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }).catch(() => {});
+    } else {
+      // last resort — legacy execCommand
+      const el = document.createElement("input");
+      el.value = url;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const { data: property, isLoading, isError, refetch } = useGetPropertyByIdQuery(id ?? "");
 
@@ -381,65 +407,62 @@ const PropertyDetails = () => {
                   )}
                 </div>
 
-                {/* Title & Price */}
-                <div className="bg-white rounded-2xl border border-border p-6 shadow-md">
-                  {property.featured && (
-                    <span className="inline-block gradient-gold text-white text-xs font-bold px-4 py-1.5 rounded-full mb-4">
-                      لقطة
-                    </span>
-                  )}
-                  <h1 className="text-3xl md:text-4xl font-black text-foreground mb-4">{property.title}</h1>
-                  <div className="flex items-center gap-2 text-muted-foreground text-base mb-5">
-                    <MapPin className="w-5 h-5 text-gold" />
-                    <span className="font-semibold">{property.neighborhood} - {property.location}</span>
+                {/* Title, Meta & Price */}
+                <div className="bg-white rounded-2xl border border-border p-6 shadow-md space-y-4">
+                  {/* Top row: badge + share */}
+                  <div className="flex items-center justify-between gap-3">
+                    {property.featured
+                      ? <span className="gradient-gold text-white text-xs font-bold px-3 py-1 rounded-full">لقطة</span>
+                      : <span />
+                    }
+                    <button
+                      onClick={handleShare}
+                      title="مشاركة العقار"
+                      className="flex items-center gap-1.5 px-3 h-8 rounded-lg border border-gold/40 bg-gold/10 hover:bg-gold/20 text-gold font-bold text-xs transition-all"
+                    >
+                      {copied
+                        ? <><Check className="w-3.5 h-3.5 text-green-500" /><span className="text-green-600">تم النسخ</span></>
+                        : <><Share2 className="w-3.5 h-3.5" />مشاركة</>
+                      }
+                    </button>
                   </div>
-                  {property.showPrice === false ? (
-                    <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5">
-                      <p className="text-amber-800 font-black text-lg mb-1">لمعرفه السعر عند الجدية - تواصل معنا</p>
-                      <p className="text-amber-700 text-sm mb-4">هذا العقار بسعر خاص — تواصل معنا الآن واحصل على السعر فوراً</p>
-                      <a
-                        href={`https://wa.me/${contactNumber}?text=${encodeURIComponent(`مرحباً، أريد الاستفسار عن سعر العقار:\n${property.title}\nالتفاصيل: ${[property.type, property.area ? `${property.area} م²` : "", property.bedrooms > 0 ? `${property.bedrooms} غرف` : "", property.bathrooms ? `${property.bathrooms} حمام` : "", `${property.neighborhood} - ${property.location}`].filter(Boolean).join(" | ")}`)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe5d] text-white font-black px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all"
-                      >
-                        <MessageCircle className="w-5 h-5" />
-                        اسأل عن السعر عبر واتساب
-                      </a>
-                    </div>
-                  ) : (
-                    <div className="text-gold font-black text-3xl md:text-4xl">{property.priceFormatted}</div>
-                  )}
-                </div>
 
-                {/* Specs */}
-                <div className="bg-white rounded-2xl border border-border shadow-md overflow-hidden">
-                  <div className="grid grid-cols-2 divide-x divide-x-reverse divide-border">
-                    <div className="p-5 flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        property.listingType === "rent" ? "bg-blue-500" : "bg-green-600"
-                      }`}>
-                        <span className="text-white text-base">{property.listingType === "rent" ? "🔑" : "🏷️"}</span>
-                      </div>
-                      <div>
-                        <p className={`font-black text-base leading-tight ${property.listingType === "rent" ? "text-blue-600" : "text-green-600"}`}>
-                          {property.listingType === "rent" ? "للإيجار" : "للبيع"}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">نوع العرض</p>
-                      </div>
-                    </div>
-                    <div className="p-5 flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl gradient-gold flex items-center justify-center shrink-0">
-                        <Maximize className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-black text-base text-foreground leading-tight">
-                          {property.area ? `${property.area} م²` : "—"}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">المساحة</p>
-                      </div>
-                    </div>
+                  {/* Title */}
+                  <h1 className="text-2xl md:text-3xl font-black text-foreground leading-snug">{property.title}</h1>
+
+                  {/* Meta row: listing type + location */}
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    <span className={`inline-flex items-center gap-1 font-bold px-3 py-1 rounded-full text-white text-xs ${
+                      property.listingType === "rent" ? "bg-blue-500" : "bg-green-600"
+                    }`}>
+                      {property.listingType === "rent" ? "🔑 للإيجار" : "🏷️ للبيع"}
+                    </span>
+                    {property.area && (
+                      <span className="inline-flex items-center gap-1 font-semibold text-muted-foreground">
+                        <Maximize className="w-3.5 h-3.5 text-gold" />
+                        المساحة: {property.area} م²
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-1 font-semibold text-muted-foreground">
+                      <MapPin className="w-3.5 h-3.5 text-gold" />
+                      {property.neighborhood} - {property.location}
+                    </span>
                   </div>
+
+                  {/* Price */}
+                  {property.showPrice === false ? (
+                    <a
+                      href={`https://wa.me/${contactNumber}?text=${encodeURIComponent(`مرحباً، أريد الاستفسار عن سعر العقار:\n${property.title}\nالتفاصيل: ${[property.type, property.area ? `${property.area} م²` : "", `${property.neighborhood} - ${property.location}`].filter(Boolean).join(" | ")}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe5d] text-white font-black px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all text-sm"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      للاستفسار عن السعر تواصل معنا
+                    </a>
+                  ) : (
+                    <p className="text-gold font-black text-3xl md:text-4xl">{property.priceFormatted}</p>
+                  )}
                 </div>
 
                 {/* Description */}
