@@ -67,9 +67,9 @@ const SiteHeader = () => {
 
         {/* CTA + Mobile Toggle */}
         <div className="flex items-center gap-3">
-          <Link to="/add-property">
+          <Link to="/login">
             <Button className="hidden md:inline-flex gradient-gold text-gold-foreground hover:opacity-90 font-bold border-0 shadow-lg hover:shadow-xl transition-all px-6">
-              أضف عقارك
+              تسجيل دخول
             </Button>
           </Link>
           <button
@@ -111,9 +111,9 @@ const SiteHeader = () => {
                 </a>
               )
             )}
-            <Link to="/add-property" onClick={() => setMobileOpen(false)}>
+            <Link to="/login" onClick={() => setMobileOpen(false)}>
               <Button className="gradient-gold text-gold-foreground hover:opacity-90 font-bold border-0 mt-2 w-full">
-                أضف عقارك
+                تسجيل دخول
               </Button>
             </Link>
           </nav>

@@ -25,6 +25,11 @@ const SuperAdminRoute = ({ children }: { children: React.ReactNode }) => {
   return user?.role === "super_admin" ? <>{children}</> : <Navigate to="/admin" replace />;
 };
 
+const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
+  const token = localStorage.getItem("adminToken");
+  return token ? <>{children}</> : <Navigate to="/admin/login" replace />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -37,14 +42,14 @@ const App = () => (
           <Route path="/properties" element={<Properties />} />
           <Route path="/property/:id" element={<PropertyDetails />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/add-property" element={<AddPropertyContact />} />
+          <Route path="/login" element={<AddPropertyContact />} />
           <Route path="/admin/login" element={<Login />} />
-          <Route path="/admin" element={<Dashboard />} />
-          <Route path="/admin/properties" element={<AdminProperties />} />
-          <Route path="/admin/add-property" element={<AddProperty />} />
-          <Route path="/admin/edit-property/:id" element={<EditProperty />} />
-          <Route path="/admin/users" element={<SuperAdminRoute><AdminUsers /></SuperAdminRoute>} />
-          <Route path="/admin/profile" element={<Profile />} />
+          <Route path="/admin" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="/admin/properties" element={<PrivateRoute><AdminProperties /></PrivateRoute>} />
+          <Route path="/admin/add-property" element={<PrivateRoute><AddProperty /></PrivateRoute>} />
+          <Route path="/admin/edit-property/:id" element={<PrivateRoute><EditProperty /></PrivateRoute>} />
+          <Route path="/admin/users" element={<PrivateRoute><SuperAdminRoute><AdminUsers /></SuperAdminRoute></PrivateRoute>} />
+          <Route path="/admin/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
